@@ -18,28 +18,28 @@ namespace geometry {
  * Важно: Возвращаемый тип и принимаемые аргументы менять не нужно
  */
 struct Point2D {
-    double x, y;
+    const double x, y;
 
     constexpr Point2D() : x(0), y(0) {}
     constexpr Point2D(double x, double y) : x(x), y(y) {}
 
     // Comparison
-    bool operator<(const Point2D &other) { return x < other.x && y < other.y; }
-    bool operator==(const Point2D &other) { return x == other.x && y == other.y; }
+    constexpr bool operator<(const Point2D &other) const { return x < other.x && y < other.y; }
+    constexpr bool operator==(const Point2D &other) const { return x == other.x && y == other.y; }
 
     // Binary math operators
-    Point2D operator+(const Point2D &other) { return {x + other.x, y + other.y}; }
-    Point2D operator-(const Point2D &other) { return {x - other.x, y - other.y}; }
-    Point2D operator*(double value) { return {x * value, y * value}; }
-    Point2D operator/(double value) { return {x / value, y / value}; }
+    constexpr Point2D operator+(const Point2D &other) const { return {x + other.x, y + other.y}; }
+    constexpr Point2D operator-(const Point2D &other) const { return {x - other.x, y - other.y}; }
+    constexpr Point2D operator*(double value) const { return {x * value, y * value}; }
+    constexpr Point2D operator/(double value) const { return {x / value, y / value}; }
 
     // Binary geometry operations
-    double Dot(const Point2D &other) { return x * other.x + y * other.y; }
-    double Cross(const Point2D &other) { return x * other.y - y * other.x; }
-    double Length() { return std::sqrt(x * x + y * y); }
-    double DistanceTo(const Point2D &other) { return (*this - other).Length(); }
+    constexpr double Dot(const Point2D &other) const { return x * other.x + y * other.y; }
+    constexpr double Cross(const Point2D &other) const { return x * other.y - y * other.x; }
+    constexpr double Length() const { return std::sqrt(x * x + y * y); }
+    constexpr double DistanceTo(const Point2D &other) const { return (*this - other).Length(); }
 
-    Point2D Normalize() {
+    constexpr Point2D Normalize() const {
         const double len = Length();
         return len > 0 ? Point2D{x / len, y / len} : Point2D{0, 0};
     }
@@ -71,23 +71,28 @@ struct Lines2DDyn {
 };
 
 struct BoundingBox {
-    double min_x, min_y, max_x, max_y;
+    const Point2D left_bottom, right_top;
 
-    /* ваш код здесь */
+    constexpr inline bool Overlaps(const BoundingBox &other) const {
+        return true;
+    }
+    constexpr inline Point2D Center() const { return (right_top - left_bottom) / 2.0; }
+    constexpr inline double Width() const { return (right_top - left_bottom).x; }
+    constexpr inline double Height() const { return (right_top - left_bottom).y; }
 };
 
 struct Line {
-    Point2D start, end;
+    const Point2D start, end;
 
     /* ваш код здесь */
 
-    Point2D Center() { return {}; }
-    std::array<Point2D, 2> Vertices() { return {Point2D{start.x, start.y}, {end.x, end.y}}; }
-    Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
+    constexpr Point2D Center() const { return {}; }
+    constexpr std::array<Point2D, 2> Vertices() const { return {Point2D{start.x, start.y}, {end.x, end.y}}; }
+    constexpr Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
 };
 
 struct Triangle {
-    Point2D a, b, c;
+    const Point2D a, b, c;
 
     //
     // Обратите внимание! В методе Lines(), в отличие от Vertices(), координаты точек замыкаются на начало:
@@ -99,33 +104,33 @@ struct Triangle {
     //      - { b, c }
     //      - { c, a }
     //
-    Point2D Center() { return {}; }
-    std::array<Point2D, 3> Vertices() { return {a, b, c}; }
-    Lines2D<4> Lines() const { return {{a.x, b.x, c.x, a.x}, {a.y, b.y, c.y, a.y}}; }
+    constexpr Point2D Center() const { return {}; }
+    constexpr std::array<Point2D, 3> Vertices() const { return {a, b, c}; }
+    constexpr Lines2D<4> Lines() const { return {{a.x, b.x, c.x, a.x}, {a.y, b.y, c.y, a.y}}; }
 
     /* ваш код здесь */
 };
 
 struct Rectangle {
-    Point2D bottom_left;
+    const Point2D bottom_left;
     double width, height;
 
     /* ваш код здесь */
-    Point2D Center() { return {}; }
-    std::array<Point2D, 1> Vertices() { return {}; }
-    Lines2D<1> Lines() const { return {}; }
+    constexpr Point2D Center() { return {}; }
+    constexpr std::array<Point2D, 1> Vertices() { return {}; }
+    constexpr Lines2D<1> Lines() const { return {}; }
 };
 
 struct RegularPolygon {
-    Point2D center_p;
+    const Point2D center_p;
     double radius;
     int sides;
 
     constexpr RegularPolygon(Point2D center, double radius, int sides)
         : center_p(center), radius(radius), sides(sides) {}
 
-    Point2D Center() { return {}; }
-    std::vector<Point2D> Vertices() {
+    constexpr Point2D Center() const { return {}; }
+    std::vector<Point2D> Vertices() const {
         std::vector<Point2D> points;
         points.reserve(sides);
 
@@ -139,16 +144,19 @@ struct RegularPolygon {
 };
 
 struct Circle {
-    Point2D center_p;
-    double radius;
+    const Point2D center_p;
+    const double radius;
 
     constexpr Circle(Point2D center, double radius) : center_p(center), radius(radius) {}
 
-    BoundingBox BoundBox() {
-        return {center_p.x - radius, center_p.y - radius, center_p.x + radius, center_p.y + radius};
+    constexpr BoundingBox BoundBox() const {
+        return {
+            { center_p.x - radius, center_p.y - radius },
+            { center_p.x + radius, center_p.y + radius }
+        };
     }
-    double Height() { return center_p.y + radius; }
-    Point2D Center() { return center_p; }
+    constexpr double Height() const { return center_p.y + radius; }
+    constexpr Point2D Center() const { return center_p; }
 
     //
     // Должны быть сделана по аналогии с RegularPolygon::Vertices
@@ -164,7 +172,7 @@ public:
     //
     // Должны быть сделана по аналогии с RegularPolygon::Vertices
     //
-    Point2D Center() { return {}; }
+    constexpr Point2D Center() const { return {}; }
     std::vector<Point2D> Vertices(size_t N = 30) const { return {}; }
     Lines2DDyn Lines(size_t N = 100) const { return {}; }
 
