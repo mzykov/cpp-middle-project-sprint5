@@ -1,4 +1,5 @@
 #pragma once
+
 #include "geometry.hpp"
 #include <cmath>
 #include <optional>
@@ -16,9 +17,11 @@ namespace geometry::intersections {
  */
 class IntersectionVisitor {
 public:
-    /* ваш код здесь */
+    IntersectionVisitor(const Line &l1, const Line &l2) {}
 };
 
-inline std::optional<Point2D> GetIntersectPoint(const Shape &shape1, const Shape &shape2) { return std::nullopt; }
+inline std::optional<Point2D> GetIntersectPoint(const Shape &shape1, const Shape &shape2) {
+    return std::nullopt;
+}
 
 }  // namespace geometry::intersections

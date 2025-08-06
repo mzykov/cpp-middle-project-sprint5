@@ -1,4 +1,5 @@
 #pragma once
+
 #include "geometry.hpp"
 #include "queries.hpp"
 #include <print>
@@ -20,26 +21,26 @@ public:
         double size = size_dist(gen);
 
         switch (type_dist(gen)) {
-        case 0: {
-            Point2D end{center.x + size, center.y + size};
-            return Line{center, end};
-        }
-        case 1: {
-            Point2D a{center.x, center.y};
-            Point2D b{center.x + size, center.y};
-            Point2D c{center.x + size / 2, center.y + size};
-            return Triangle{a, b, c};
-        }
-        case 2: {
-            return Rectangle{center, size, size * 0.8};
-        }
-        case 3: {
-            int sides = sides_dist(gen);
-            return RegularPolygon{center, size, sides};
-        }
-        case 4: {
-            return Circle{center, size};
-        }
+            case 0: {
+                Point2D end{center.x + size, center.y + size};
+                return Line{center, end};
+            }
+            case 1: {
+                Point2D a{center.x, center.y};
+                Point2D b{center.x + size, center.y};
+                Point2D c{center.x + size / 2, center.y + size};
+                return Triangle{a, b, c};
+            }
+            case 2: {
+                return Rectangle{center, size, size * 0.8};
+            }
+            case 3: {
+                int sides = sides_dist(gen);
+                return RegularPolygon{center, size, sides};
+            }
+            case 4: {
+                return Circle{center, size};
+            }
         }
         return Circle{center, size};
     }
@@ -48,8 +49,8 @@ public:
         std::vector<Shape> shapes;
         shapes.reserve(count);
 
-        for (auto _ : std::views::iota(0u, count)) {
-            shapes.push_back(GenerateRandomShape());
+        while (count --> 0) {
+            shapes.emplace_back(GenerateRandomShape());
         }
 
         return shapes;

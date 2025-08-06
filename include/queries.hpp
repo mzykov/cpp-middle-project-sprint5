@@ -1,4 +1,5 @@
 #pragma once
+
 #include "geometry.hpp"
 #include <algorithm>
 #include <optional>
@@ -50,7 +51,7 @@ inline double DistanceToPoint(const Shape &shape, const Point2D &point) {
     return 0.0;
 }
 
-inline BoundingBox GetBoundBox(const Shape &shape) {
+inline BoundingBox GetBoundingBox(const Shape &shape) {
 
     /* ваш код здесь */
     return {};
@@ -70,7 +71,7 @@ inline bool BoundingBoxesOverlap(const Shape &shape1, const Shape &shape2) {
 
 std::optional<double> DistanceBetweenShapes(const Shape &shape1, const Shape &shape2) {
 
-    /* ваш код с ShapeToShapeDistanceVisitor здесь*/
+    /* ваш код с ShapeToShapeDistanceVisitor здесь */
     return std::nullopt;
 }
 
