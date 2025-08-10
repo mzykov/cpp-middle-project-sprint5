@@ -8,8 +8,6 @@
 
 namespace geometry::triangulation {
 
-constexpr double eps = 1e-10;
-
 struct DelaunayTriangle {
     const Point2D a, b, c;
 
@@ -18,12 +16,12 @@ struct DelaunayTriangle {
     constexpr bool ContainsPoint(const Point2D &p) const {
         Point2D center = Circumcenter();
         double radius = Circumradius();
-        return center.DistanceTo(p) <= radius + eps;
+        return center.DistanceTo(p) <= radius + eps();
     }
 
     constexpr Point2D Circumcenter() const {
         double d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
-        if (std::abs(d) < eps) {
+        if (std::abs(d) < eps()) {
             return {(a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3};
         }
 
@@ -50,7 +48,7 @@ struct DelaunayTriangle {
         int shared_count = 0;
         for (const Point2D &p1 : this_points) {
             for (const Point2D &p2 : other_points) {
-                if (std::abs(p1.x - p2.x) < eps && std::abs(p1.y - p2.y) < eps) {
+                if (std::abs(p1.x - p2.x) < eps() && std::abs(p1.y - p2.y) < eps()) {
                     shared_count++;
                     break;
                 }
@@ -71,18 +69,18 @@ struct Edge {
         p2(p2 < p1 ? p1 : p2) {}
 
     constexpr bool operator<(const Edge &other) const {
-        if (std::abs(p1.x - other.p1.x) > eps)
+        if (std::abs(p1.x - other.p1.x) > eps())
             return p1.x < other.p1.x;
-        if (std::abs(p1.y - other.p1.y) > eps)
+        if (std::abs(p1.y - other.p1.y) > eps())
             return p1.y < other.p1.y;
-        if (std::abs(p2.x - other.p2.x) > eps)
+        if (std::abs(p2.x - other.p2.x) > eps())
             return p2.x < other.p2.x;
         return p2.y < other.p2.y;
     }
 
     constexpr bool operator==(const Edge &other) const {
-        return std::abs(p1.x - other.p1.x) < eps && std::abs(p1.y - other.p1.y) < eps &&
-               std::abs(p2.x - other.p2.x) < eps && std::abs(p2.y - other.p2.y) < eps;
+        return std::abs(p1.x - other.p1.x) < eps() && std::abs(p1.y - other.p1.y) < eps() &&
+               std::abs(p2.x - other.p2.x) < eps() && std::abs(p2.y - other.p2.y) < eps();
     }
 };
 
