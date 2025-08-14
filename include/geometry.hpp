@@ -9,6 +9,7 @@
 #include <numeric>
 #include <optional>
 #include <print>
+#include <random>
 #include <ranges>
 #include <variant>
 #include <vector>
@@ -30,6 +31,7 @@ struct Point2D {
 
     // Comparison
     constexpr inline bool operator<(const Point2D &other) const { return x < other.x && y < other.y; }
+    constexpr inline bool operator<=(const Point2D &other) const { return x <= other.x && y <= other.y; }
     constexpr inline bool operator==(const Point2D &other) const { return std::abs(x - other.x) < eps() && std::abs(y - other.y) < eps(); }
 
     // Binary math operators
@@ -124,6 +126,10 @@ struct BoundingBox {
 
 struct Line {
     const Point2D start, end;
+
+    constexpr Line(const Point2D &s, const Point2D &e) :
+        start(s.x < e.x ? s : s.x > e.x ? e : s.y <= e.y ? s : e),
+        end(s.x < e.x ? e : s.x > e.x ? s : s.y <= e.y ? e : s) {}
 
     constexpr inline Point2D::ValueType Length() const { return start.DistanceTo(end); }
     constexpr inline Point2D::ValueType Height() const { return std::max(start.y, end.y); }
@@ -280,6 +286,132 @@ struct Line {
     std::vector<Line> GetFaces() const {
         return { { start, end } };
     }
+
+    constexpr inline bool Overlaps(const Line &other) const {
+        const auto coeffs = LineCoeffs();
+        const auto other_coeffs = other.LineCoeffs();
+
+        if (coeffs && other_coeffs) {
+            const auto [k, b] = *coeffs;
+            const auto [k_other, b_other] = *other_coeffs;
+
+            if (std::abs(k) < eps() && std::abs(k_other) < eps()) {
+                // Прямые типа y = Const
+                if (start.x <= other.start.x && other.start.x <= end.x) {
+                    // Начало второго отрезка содержится в первом отрезке
+                    return true;
+                }
+                else if (other.start.x <= start.x && start.x <= other.end.x) {
+                    // Конец второго отрезка содержится в первом отрезке
+                    return true;
+                }
+                else if (start.x <= other.start.x && other.end.x <= end.x) {
+                    // Первый отрезок содержит второй
+                    return true;
+                }
+                else if (other.start.x <= start.x && end.x <= other.end.x) {
+                    // Второй отрезок содержит первый
+                    return true;
+                }
+            }
+            else if (std::abs(k) > eps() && std::abs(k_other) > eps() && std::abs(k - k_other) < 2.0 * eps()) {
+                if (std::abs(b - b_other) < eps()) {
+                    // Это одна и та же прямая - проверяем по координатам
+                    if (start.x <= other.start.x && other.start.x <= end.x) {
+                        // Начало второго отрезка содержится в первом отрезке
+                        return true;
+                    }
+                    else if (other.start.x <= start.x && start.x <= other.end.x) {
+                        // Конец второго отрезка содержится в первом отрезке
+                        return true;
+                    }
+                    else if (start.x <= other.start.x && other.end.x <= end.x) {
+                        // Первый отрезок содержит второй
+                        return true;
+                    }
+                    else if (other.start.x <= start.x && end.x <= other.end.x) {
+                        // Второй отрезок содержит первый
+                        return true;
+                    }
+                } else {
+                    // Это не равные друг другу параллельные прямые.
+                    // Один из концов отрезков должен содержаться в другом отрезке
+                    {
+                        const double x = (start.x + k_other * (start.y - b_other)) / (k_other * k_other + 1.0);
+                        const double y = k_other * x + b_other;
+                        if (other.ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                    {
+                        const double x = (end.x + k_other * (end.y - b_other)) / (k_other * k_other + 1.0);
+                        const double y = k_other * x + b_other;
+                        if (other.ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                    {
+                        const double x = (other.start.x + k * (other.start.y - b)) / (k * k + 1.0);
+                        const double y = k * x + b;
+                        if (ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                    {
+                        const double x = (other.end.x + k * (other.end.y - b)) / (k * k + 1.0);
+                        const double y = k * x + b;
+                        if (ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        else if (!coeffs && !other_coeffs) {
+            // Прямые типа x = Const
+            if (start.y <= other.start.y && other.start.y <= end.y) {
+                // Начало второго отрезка содержится в первом отрезке
+                return true;
+            }
+            else if (other.start.y <= start.y && start.y <= other.end.y) {
+                // Конец второго отрезка содержится в первом отрезке
+                return true;
+            }
+            else if (start.y <= other.start.y && other.end.y <= end.y) {
+                // Первый отрезок содержит второй
+                return true;
+            }
+            else if (other.start.y <= start.y && end.y <= other.end.y) {
+                // Второй отрезок содержит первый
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Point2D GetRandomPoint() const {
+        const auto get_random = [](const double l, const double r) -> double {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            // Здесь есть асимметрия, потому что левая граница включена, а правая нет,
+            // но для простоты считаем это допустимым
+            std::uniform_real_distribution<> dist(l, r);
+            return dist(re);
+        };
+        if (std::abs(start.x - end.x) >= eps() && std::abs(start.y - end.y) >= eps()) {
+            return Point2D{ get_random(start.x, end.x), get_random(start.y, end.y) };
+        }
+        else if (std::abs(start.x - end.x) < eps() && std::abs(start.y - end.y) >= eps()) {
+            return Point2D{ start.x, get_random(start.y, end.y) };
+        }
+        else if (std::abs(start.x - end.x) >= eps() && std::abs(start.y - end.y) < eps()) {
+            return Point2D{ get_random(start.x, end.x), start.y };
+        }
+        else {
+            throw std::logic_error("Equal points can not form a line");
+        }
+        return {};
+    }
 };
 
 struct Triangle {
@@ -304,7 +436,23 @@ struct Triangle {
     constexpr inline Lines2D<4> Lines() const { return {{a.x, b.x, c.x, a.x}, {a.y, b.y, c.y, a.y}}; }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
-        return true;
+        const auto c1 = (b - a).Cross(p - a);
+        const auto c2 = (c - b).Cross(p - b);
+        const auto c3 = (a - c).Cross(p - c);
+        // Если знаки одинаковые, то точка внутри треугольника
+        if (c1 < 0.0 && c2 < 0.0 && c3 < 0.0) {
+            return true;
+        }
+        else if (c1 > 0.0 && c2 > 0.0 && c3 > 0.0) {
+            return true;
+        }
+        else if (std::abs(c1) < eps() || std::abs(c2) < eps() || std::abs(c3) < eps()) {
+            // Если одно из произведений равно нулю, то точка лежит на границе треугольника
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     std::vector<Line> GetFaces() const {
@@ -325,7 +473,8 @@ struct Rectangle {
     constexpr inline Lines2D<1> Lines() const { return {{left_bottom.x}, {left_bottom.y}}; }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
-        return true;
+        const auto top_right = left_bottom + Point2D{width, height};
+        return left_bottom <= p && p <= top_right;
     }
 
     std::vector<Line> GetFaces() const {
@@ -385,8 +534,20 @@ struct RegularPolygon {
         return res;
     }
 
+    constexpr inline double InnerRadius() const {
+        return radius * std::cos(std::numbers::pi * sides);
+    }
+
     constexpr inline bool ContainsPoint(const Point2D &p) const {
-        return true;
+        // Разбиваем на треугольники и проверяем каждый из них
+        const auto v = Vertices();
+        for (int i = 0; i < v.size(); ++i) {
+            const auto t = Triangle{ center_p, v[i], v[(i + 1) % v.size()] };
+            if (t.ContainsPoint(p)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     std::vector<Line> GetFaces() const {
@@ -442,8 +603,19 @@ struct Circle {
         return res;
     }
 
-    constexpr inline Point2D GetRandomPoint() const {
-        return { center_p.x + radius, center_p.y }; // TODO: make truly random
+    Point2D GetRandomPoint() const {
+        const auto get_random = [](const double l, const double r) -> double {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            // Здесь есть асимметрия, потому что левая граница включена, а правая нет,
+            // но для простоты считаем это допустимым
+            std::uniform_real_distribution<> dist(l, r);
+            return dist(re);
+        };
+        return {
+            get_random(center_p.x - radius, center_p.x + radius),
+            get_random(center_p.y - radius, center_p.y + radius)
+        };
     }
 
     constexpr inline bool DoNotIntersectCircle(const Circle &other) const {
@@ -573,7 +745,23 @@ public:
     }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
-        return false;
+        // Алгоритм вероятностный. Простого ответа на вопрос принадлежит ли точка
+        // многоугольнику нет, т.к. многоугольник может быть какой угодно "сложный".
+        // Здесь используется метод трассировки луча. Если точка расположена внутри,
+        // то "с большой вероятностью" число пересечений луча из этой точки в каком-то
+        // произвольном направлении будет нечётным. Если снаружи, то число пересечений луча
+        // с гранями многоугольника "с большой вероятностью" будет чётным.
+        // Чтобы уменьшить вероятность неверного ответа, делаем N рандомных попыток и
+        // смотрим, каких результатов получилось больше: чётных или нечётных
+        constexpr size_t N = 3; // нечётное, чтобы можно было определить победителя
+        std::vector<int> res(N);
+
+        for (size_t i = 0; i < N; ++i) {
+            const int num_intersections = calculateIntersectionsWithRandomRay(p);
+            res[i] = num_intersections % 2 ? 1 : -1;
+        }
+
+        return std::ranges::fold_left(res, 0, std::plus<int>()) < 0;
     }
 
     std::vector<Line> GetFaces() const {
@@ -584,11 +772,67 @@ public:
         }
         return faces;
     }
+
+private:
+    constexpr inline size_t calculateIntersectionsWithRandomRay(const Point2D &p) const {
+        // Случайным образом выбираем одну из граней многоугольника и проводим луч
+        // из точки `p` через рандомную точку этой грани за границу BoundingBox этого многоугольника.
+        // Далее считаем количество пересечений этого луча (по факту это отрезок) с гранями
+        // многоугольника
+        const auto faces = GetFaces();
+        const auto get_random = [](const int sz) -> int {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            std::uniform_int_distribution<int> dist(0, sz);
+            return dist(re);
+        };
+        // Эта точка нужна для формирования луча
+        const auto random_point = faces[get_random(faces.size() - 1)].GetRandomPoint();
+        const auto coeffs = Line{p, random_point}.LineCoeffs();
+
+        double boundary_x, boundary_y;
+
+        if (coeffs) {
+            const auto [k, b] = *coeffs;
+
+            if (p.x < random_point.x) {
+                boundary_x = GetBoundingBox().Right();
+            } else {
+                boundary_x = GetBoundingBox().Left();
+            }
+
+            boundary_y = k * boundary_x + b;
+        }
+        else {
+            // Получилась вертикальная прямая x = Const
+            boundary_x = p.x;
+
+            if (p.y > random_point.y) {
+                // Луч идёт вниз, значит в качестве крайней точки берём минимальную координату
+                // ограничивающего прямоугольника
+                boundary_y = GetBoundingBox().Bottom();
+            } else {
+                // Луч идёт вверх
+                boundary_y = GetBoundingBox().Top();
+            }
+        }
+
+        const auto ray = Line{p, Point2D{boundary_x, boundary_y}};
+        size_t res = 0;
+
+        for (const auto face : faces) {
+            if (face.GetIntersectPoint(ray)) {
+                ++res;
+            }
+        }
+
+        return res;
+    }
 };
 
 using Shape = std::variant<Line, Triangle, Rectangle, RegularPolygon, Circle, Polygon>;
 
-enum class GeometryError { Unsupported, NoIntersection, InvalidInput, DegenrateCase, InsufficientPoints };
+enum class GeometryError { Unsupported, NoIntersection, InvalidInput, DegenerateCase, InsufficientPoints };
 
 template <typename T>
 using GeometryResult = std::expected<T, GeometryError>;
@@ -608,6 +852,7 @@ struct std::formatter<geometry::Point2D> {
         return format_to(ctx.out(), "({:.2f}, {:.2f})", p.x, p.y);
     }
 };
+
 template <>
 struct std::formatter<std::vector<geometry::Point2D>> {
     bool use_new_line = false;
@@ -677,6 +922,7 @@ struct std::formatter<geometry::RegularPolygon> {
                               p.sides);
     }
 };
+
 template <>
 struct std::formatter<geometry::Triangle> {
     constexpr auto parse(std::format_parse_context &ctx) const { return ctx.begin(); }
@@ -686,6 +932,7 @@ struct std::formatter<geometry::Triangle> {
         return std::format_to(ctx.out(), "Triangle({}, {}, {})", t.a, t.b, t.c);
     }
 };
+
 template <>
 struct std::formatter<geometry::Polygon> {
     constexpr auto parse(std::format_parse_context &ctx) const { return ctx.begin(); }
