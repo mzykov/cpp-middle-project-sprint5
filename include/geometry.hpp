@@ -89,6 +89,9 @@ struct BoundingBox {
             }
         }
 
+    constexpr inline bool operator==(const BoundingBox &other) const = default;
+    constexpr inline bool operator!=(const BoundingBox &other) const = default;
+
     constexpr inline bool Overlaps(const BoundingBox &other) const {
         if (Left() >= other.Right() || other.Left() >= Right()) {
             return false;
@@ -417,6 +420,8 @@ struct Line {
 struct Triangle {
     const Point2D a, b, c;
 
+    constexpr inline bool operator==(const Triangle &other) const = default;
+
     constexpr inline double Area() const {
         return (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2.0;
     }
@@ -464,6 +469,8 @@ struct Rectangle {
     const Point2D left_bottom;
     double width, height;
 
+    constexpr inline bool operator==(const Rectangle &other) const = default;
+
     constexpr inline double Area() const { return width * height; }
     constexpr inline Point2D Center() const { return left_bottom + Point2D{width/2.0, height/2.0}; }
     constexpr inline BoundingBox GetBoundingBox() const { return {left_bottom, left_bottom + Point2D{width, height}}; }
@@ -494,6 +501,8 @@ struct RegularPolygon {
 
     constexpr RegularPolygon(Point2D center, double radius, int sides)
         : center_p(center), radius(radius), sides(sides) {}
+
+    constexpr inline bool operator==(const RegularPolygon &other) const = default;
 
     constexpr inline double Area() const {
         return sides * radius * radius * sin(2.0 * std::numbers::pi / sides) / 2.0;
@@ -709,6 +718,8 @@ public:
         }
         return Point2D{center_x, center_y} / vertices.size();
     }
+
+    constexpr inline bool operator==(const Polygon &other) const = default;
 
     constexpr inline double Height() const {
         return (*std::max_element(vertices.begin(), vertices.end(),

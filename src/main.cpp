@@ -116,5 +116,6 @@ int main() {
         // используя geometry::visualization::Draw
         //
     }
+
     return 0;
 }

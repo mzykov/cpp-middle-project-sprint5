@@ -64,27 +64,33 @@ private:
     std::uniform_int_distribution<int> type_dist;
 };
 
-std::vector<std::pair<Shape, Shape>> FindAllCollisions(ReplaceMe shapes) {
-    std::vector<std::pair<Shape, Shape>> collisions;
-
-    /*
-     * Используйте библиотеку ranges, чтобы найти все коллизии между фигурами методом BoundingBoxesOverlap
-     *
-     * Также используйте наиболее эффективный метод добавления объектов в collisions
-     */
-
-    return collisions;
+std::vector<std::pair<Shape, Shape>> FindAllCollisions(const std::vector<Shape> &shapes) {
+    return std::views::cartesian_product(shapes, shapes)
+        | std::views::filter([](const auto &p){
+            const auto visiter = [](const auto &shape1, const auto &shape2) {
+                const auto bbox1 = shape1.GetBoundingBox();
+                const auto bbox2 = shape2.GetBoundingBox();
+                if (bbox1 == bbox2) {
+                    return false;
+                } else {
+                    return bbox1.Overlaps(bbox2);
+                }
+            };
+            return std::visit(visiter, std::get<0>(p), std::get<1>(p));
+        })
+        | std::ranges::to<std::vector<std::pair<Shape, Shape>>>();
 }
 
-std::optional<size_t> FindHighestShape(ReplaceMe shapes) {
-
-    /*
-     * Используйте библиотеку ranges, чтобы найти самую высокую фигуру
-     *
-     * Важно: использование ручной итерации по фигурам не разрешается
-     */
-
-    return std::nullopt;
+std::optional<Shape> FindHighestShape(const std::vector<Shape> &shapes) {
+    if (shapes.size() == 0) {
+        return std::nullopt;
+    } else {
+        const auto height_lambda = [](const auto &v) -> double { return v.Height(); };
+        const auto height_comp = [&height_lambda](const auto &lhd, const auto &rhd) -> bool {
+            return lhd.visit(height_lambda) < rhd.visit(height_lambda);
+        };
+        return { *std::ranges::max_element(shapes, height_comp) };
+    }
 }
 
 }  // namespace geometry::utils
