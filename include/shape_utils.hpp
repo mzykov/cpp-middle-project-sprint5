@@ -67,7 +67,7 @@ private:
 std::vector<std::pair<Shape, Shape>> FindAllCollisions(const std::vector<Shape> &shapes) {
     return std::views::cartesian_product(shapes, shapes)
         | std::views::filter([](const auto &p){
-            const auto visiter = [](const auto &shape1, const auto &shape2) {
+            const auto visiter = [](auto &&shape1, auto &&shape2) {
                 const auto bbox1 = shape1.GetBoundingBox();
                 const auto bbox2 = shape2.GetBoundingBox();
                 if (bbox1 == bbox2) {

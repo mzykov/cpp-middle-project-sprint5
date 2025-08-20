@@ -52,11 +52,10 @@ struct PointToShapeDistanceVisitor {
         if (v.ContainsPoint(point)) {
             return 0.0;
         } else {
-            const auto faces = v.GetFaces();
-            const auto dists = faces
+            const auto dists = v.GetFaces()
                 | std::views::transform([&](const auto &face){ return accept(face); })
                 | std::ranges::to<std::vector>();
-            return *std::min_element(dists.begin(), dists.end());
+            return *std::ranges::min_element(dists);
         }
     }
 };

@@ -24,7 +24,7 @@ constexpr inline double eps() { return 1e-10; }
  */
 struct Point2D {
     using ValueType = double;
-    const ValueType x, y;
+    ValueType x, y;
 
     constexpr Point2D() : x(0), y(0) {}
     constexpr Point2D(ValueType x, ValueType y) : x(x), y(y) {}
