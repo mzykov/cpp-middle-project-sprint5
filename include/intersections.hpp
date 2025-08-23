@@ -14,15 +14,15 @@ struct IntersectionVisitor : Ts... {
 template <class... Ts>
 IntersectionVisitor(Ts...) -> IntersectionVisitor<Ts...>;
 
-inline std::optional<Point2D> GetIntersectPoint(const Shape &shape1, const Shape &shape2) {
+inline GeometryResult<std::optional<Point2D>> GetIntersectPoint(const Shape &shape1, const Shape &shape2) {
     const auto visiter = IntersectionVisitor {
-        [](const Line &line1, const Line &line2) -> std::optional<Point2D> {
+        [](const Line &line1, const Line &line2) -> GeometryResult<std::optional<Point2D>> {
             return { line1.GetIntersectPoint(line2) };
         },
-        [](const Circle &circle1, const Circle &circle2) -> std::optional<Point2D> {
+        [](const Circle &circle1, const Circle &circle2) -> GeometryResult<std::optional<Point2D>> {
             return { circle1.GetIntersectPoint(circle2) };
         },
-        [](const Line &line, const Circle &circle) -> std::optional<Point2D> {
+        [](const Line &line, const Circle &circle) -> GeometryResult<std::optional<Point2D>> {
             const auto coeffs = line.LineCoeffs();
             if (coeffs) {
                 const auto &center = circle.center_p;
@@ -83,9 +83,8 @@ inline std::optional<Point2D> GetIntersectPoint(const Shape &shape1, const Shape
             }
             return std::nullopt;
         },
-        [](const auto &shape1, const auto &shape2) -> std::optional<Point2D> {
-            throw std::logic_error("Unsupported shapes combination");
-            return std::nullopt;
+        [](const auto &shape1, const auto &shape2) -> GeometryResult<std::optional<Point2D>> {
+            return std::unexpected{GeometryError::Unsupported};
         }
     };
     return std::visit(visiter, shape1, shape2);

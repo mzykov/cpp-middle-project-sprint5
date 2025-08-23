@@ -130,16 +130,10 @@ std::optional<double> DistanceBetweenShapes(const Shape &shape1, const Shape &sh
             }
         },
         [](const Circle &circle1, const Circle &circle2) -> std::optional<double> {
-            const auto l = Line{circle1.center_p, circle2.center_p};
+            const auto l = Line{circle1.center_p, circle2.center_p}.Length();
 
-            if (l.Length() > circle1.radius + circle2.radius) {
-                const auto i1 = intersections::GetIntersectPoint(circle1, l);
-                const auto i2 = intersections::GetIntersectPoint(circle2, l);
-                if (i1 && i2) {
-                    return { Line{*i1, *i2}.Length() };
-                } else {
-                    return std::nullopt;
-                }
+            if (l > circle1.radius + circle2.radius) {
+                return { l - circle1.radius - circle2.radius };
             } else {
                 return { 0.0 };
             }

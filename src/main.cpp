@@ -17,20 +17,28 @@ using namespace geometry;
 namespace rng = std::ranges;
 namespace views = std::ranges::views;
 
-void PrintAllIntersections(const Shape &shape, const std::vector<Shape> &others) {
+void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
     std::println("\n=== Intersections ===");
 
-    /*
-     * Используйте ranges чтобы оставить только фигуры,
-     * поддерживающие возможность находить пересечения между собой
-     *
-     * Затем примените монадический интерфейс для обработки результатов:
-     *     - Пересечение найдено в точке A между фигурами B и C
-     *     - Фигуры B и C не пересекаются
-     */
+    for (const auto &v : others) {
+        const auto maybe_intersection = intersections::GetIntersectPoint(shape, v);
+        if (!maybe_intersection.has_value()) {
+            continue;
+        }
+
+        const auto optional_point = maybe_intersection.value();
+
+        std::visit([&optional_point](const auto &v1, const auto &v2) {
+            if (optional_point) {
+                std::println("Пересечение найдено в точке {} между фигурами {} и {}", *optional_point, v1, v2);
+            } else {
+                std::println("Фигуры {} и {} не пересекаются", v1, v2);
+            }
+        }, shape, v);
+    }
 }
 
-void PrintDistancesFromPointToShapes(Point2D p, const std::vector<Shape> &shapes) {
+void PrintDistancesFromPointToShapes(const Point2D &p, std::span<const Shape> shapes) {
     std::println("\n=== Distance from Point Test ===");
     std::println("Testing point: {} ", p);
 
@@ -97,7 +105,7 @@ int main() {
     //
     // Вызываем разработанные функции
     //
-    PrintAllIntersections(shapes[0], shapes);
+    PrintAllIntersections(shapes[0], {std::next(shapes.begin()), shapes.end()});
     PrintDistancesFromPointToShapes(Point2D{10.0, 10.0}, shapes);
     PerformShapeAnalysis(shapes);
     PerformExtraShapeAnalysis(shapes);
