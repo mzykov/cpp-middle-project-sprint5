@@ -63,8 +63,7 @@ void Draw(std::span<geometry::Shape> shapes) {
     f->show();
 }
 
-void Draw(std::span<geometry::triangulation::DelaunayTriangle> triangles) {
-    using namespace geometry;
+void Draw(std::span<geometry::Triangle> triangles) {
     using namespace matplot;
 
     // Disable gnuplot warnings
@@ -77,8 +76,7 @@ void Draw(std::span<geometry::triangulation::DelaunayTriangle> triangles) {
     axis(equal);  // Squre view
     grid(on);     // Enable grid by default
 
-    for (const auto &[index, d_triangle] : std::ranges::views::enumerate(triangles)) {
-        geometry::Triangle tri{d_triangle.a, d_triangle.b, d_triangle.c};
+    for (const auto &[index, tri] : std::ranges::views::enumerate(triangles)) {
         const auto lines = tri.Lines();
         plot(lines.x, lines.y)->line_width(2).color("cyan");
 

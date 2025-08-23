@@ -8,11 +8,11 @@
 namespace geometry::queries {
 
 struct PointToShapeDistanceVisitor {
-    Point2D point;
+    const Point2D point;
 
     explicit PointToShapeDistanceVisitor(const Point2D &p) : point(p) {}
 
-    double accept(Line &&line) const {
+    double accept(const Line &line) const {
         const auto coeffs = line.LineCoeffs();
         if (coeffs) {
             const auto [k, b] = *coeffs;
@@ -34,26 +34,21 @@ struct PointToShapeDistanceVisitor {
         return std::min(point.DistanceTo(line.start), point.DistanceTo(line.end));
     }
 
-    double accept(Circle &&circle) const {
+    double accept(const Circle &circle) const {
         const auto dist = point.DistanceTo(circle.center_p);
         if (dist > circle.radius) {
-            const auto intersection = intersections::GetIntersectPoint(circle, Line{circle.center_p, point});
-            if (intersection) {
-                return Line{*intersection, point}.Length();
-            } else {
-                throw std::logic_error("No intersection between point and circle");
-            }
+            return dist - circle.radius;
         } else {
             return 0.0;
         }
     }
 
-    double accept(auto &&v) const {
+    double accept(const auto &v) const {
         if (v.ContainsPoint(point)) {
             return 0.0;
         } else {
             const auto dists = v.GetFaces()
-                | std::views::transform([&](const auto &face){ return accept(face); })
+                | std::views::transform([&](const Line &face){ return accept(face); })
                 | std::ranges::to<std::vector>();
             return *std::ranges::min_element(dists);
         }
@@ -70,7 +65,7 @@ ShapeToShapeDistanceVisitor(Ts...) -> ShapeToShapeDistanceVisitor<Ts...>;
 
 inline double DistanceToPoint(const Shape &shape, const Point2D &point) {
     const auto visiter = PointToShapeDistanceVisitor{point};
-    return shape.visit([&](auto &&v){ return visiter.accept(v); });
+    return shape.visit([&](const auto &v){ return visiter.accept(v); });
 }
 
 inline BoundingBox GetBoundingBox(const Shape &shape) {

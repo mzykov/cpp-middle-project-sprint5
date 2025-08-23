@@ -17,10 +17,10 @@ IntersectionVisitor(Ts...) -> IntersectionVisitor<Ts...>;
 inline std::optional<Point2D> GetIntersectPoint(const Shape &shape1, const Shape &shape2) {
     const auto visiter = IntersectionVisitor {
         [](const Line &line1, const Line &line2) -> std::optional<Point2D> {
-            return line1.GetIntersectPoint(line2);
+            return { line1.GetIntersectPoint(line2) };
         },
         [](const Circle &circle1, const Circle &circle2) -> std::optional<Point2D> {
-            return circle1.GetIntersectPoint(circle2);
+            return { circle1.GetIntersectPoint(circle2) };
         },
         [](const Line &line, const Circle &circle) -> std::optional<Point2D> {
             const auto coeffs = line.LineCoeffs();

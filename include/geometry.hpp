@@ -11,6 +11,8 @@
 #include <print>
 #include <random>
 #include <ranges>
+#include <set>
+#include <span>
 #include <variant>
 #include <vector>
 
@@ -134,6 +136,18 @@ struct Line {
         start(s.x < e.x ? s : s.x > e.x ? e : s.y <= e.y ? s : e),
         end(s.x < e.x ? e : s.x > e.x ? s : s.y <= e.y ? e : s) {}
 
+    constexpr inline bool operator==(const Line &other) const { return start == other.start && end == other.end; }
+
+    constexpr bool operator<(const Line &other) const {
+        if (std::abs(start.x - other.start.x) > eps())
+            return start.x < other.start.x;
+        if (std::abs(start.y - other.start.y) > eps())
+            return start.y < other.start.y;
+        if (std::abs(end.x - other.end.x) > eps())
+            return end.x < other.end.x;
+        return end.y < other.end.y;
+    }
+
     constexpr inline Point2D::ValueType Length() const { return start.DistanceTo(end); }
     constexpr inline Point2D::ValueType Height() const { return std::max(start.y, end.y); }
     constexpr inline BoundingBox GetBoundingBox() const { return BoundingBox(start, end); }
@@ -141,8 +155,6 @@ struct Line {
     constexpr inline std::array<Point2D, 2> Vertices() const { return {start, end}; }
     constexpr inline Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
     constexpr inline Point2D Direction() const { return (end - start).Normalize(); }
-
-    constexpr inline bool operator==(const Line &other) const { return start == other.start && end == other.end; }
 
     // Коэффициенты прямой, которая содержит этот отрезок находим из уравнения:
     // y = k * x + b
@@ -418,7 +430,7 @@ struct Line {
 };
 
 struct Triangle {
-    const Point2D a, b, c;
+    Point2D a, b, c;
 
     constexpr inline bool operator==(const Triangle &other) const = default;
 
@@ -462,6 +474,58 @@ struct Triangle {
 
     std::vector<Line> GetFaces() const {
         return { { a, b }, { b, c }, { c, a } };
+    }
+
+    constexpr bool CircumCircleContainsPoint(const Point2D &p) const {
+        return CircumCenter().DistanceTo(p) <= CircumRadius() + eps();
+    }
+
+    constexpr Point2D CircumCenter() const {
+        const double d = 2.0 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+
+        if (std::abs(d) < eps()) {
+            return { (a.x + b.x + c.x) / 3.0, (a.y + b.y + c.y) / 3.0 };
+        }
+
+        const double ux = (
+            (a.x * a.x + a.y * a.y) * (b.y - c.y) +
+            (b.x * b.x + b.y * b.y) * (c.y - a.y) +
+            (c.x * c.x + c.y * c.y) * (a.y - b.y)
+        ) / d;
+
+        const double uy = (
+            (a.x * a.x + a.y * a.y) * (c.x - b.x) +
+            (b.x * b.x + b.y * b.y) * (a.x - c.x) +
+            (c.x * c.x + c.y * c.y) * (b.x - a.x)
+        ) / d;
+
+        return { ux, uy };
+    }
+
+    constexpr double CircumRadius() const {
+        return CircumCenter().DistanceTo(a);
+    }
+
+    constexpr bool SharesFace(const Triangle &other) const {
+        const std::span<const Point2D> this_points = {a, b, c};
+        const std::span<const Point2D> other_points = {other.a, other.b, other.c};
+        size_t shared_count = 0;
+
+        for (const Point2D &p1 : this_points) {
+            for (const Point2D &p2 : other_points) {
+                if (std::abs(p1.x - p2.x) < eps() && std::abs(p1.y - p2.y) < eps()) {
+                    shared_count++;
+                    break;
+                }
+            }
+        }
+
+        return shared_count == 2;
+    }
+
+    constexpr bool SharesVertex(const Triangle &other) const {
+        std::set<Point2D> u {a, b, c, other.a, other.b, other.c };
+        return u.size() < 6;
     }
 };
 

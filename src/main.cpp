@@ -8,14 +8,16 @@
 
 #include <algorithm>
 #include <print>
+#include <random>
 #include <ranges>
+#include <unordered_set>
 
 using namespace geometry;
 
 namespace rng = std::ranges;
 namespace views = std::ranges::views;
 
-void PrintAllIntersections(const Shape &shape, ReplaceMe others) {
+void PrintAllIntersections(const Shape &shape, const std::vector<Shape> &others) {
     std::println("\n=== Intersections ===");
 
     /*
@@ -28,15 +30,34 @@ void PrintAllIntersections(const Shape &shape, ReplaceMe others) {
      */
 }
 
-void PrintDistancesFromPointToShapes(Point2D p, ReplaceMe shapes) {
+void PrintDistancesFromPointToShapes(Point2D p, const std::vector<Shape> &shapes) {
     std::println("\n=== Distance from Point Test ===");
     std::println("Testing point: {} ", p);
 
-    /*
-     * Используйте ranges чтобы выбрать любые 5 фигур из списка.
-     * Затем найдите расстояния от заданной точки до всех выбранных фигур.
-     * Выведите результат в формате "Расстояние от точки P до фигуры S равно D"
-     */
+    if (shapes.size() == 0) {
+        return;
+    }
+
+    constexpr size_t sz = 5;
+    const size_t num_shapes = std::min(sz, shapes.size());
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::uniform_int_distribution<size_t> distrib(0, shapes.size() - 1);
+    std::unordered_set<size_t> already;
+
+    for (size_t i = 0; i < num_shapes; ++i) {
+        size_t index = distrib(g);
+        while (already.contains(index)) {
+            index = distrib(g);
+        }
+        already.insert(index);
+        const auto shape = shapes[index];
+        const auto dist = queries::DistanceToPoint(shape, p);
+        shape.visit([&p, &dist](auto &&v){
+            std::println("Расстояние от точки {} до фигуры {} равно {:.4}", p, v, dist);
+        });
+    }
 }
 
 void PerformShapeAnalysis(ReplaceMe shapes) {
@@ -66,17 +87,19 @@ int main() {
 
     std::println("Generated {} random shapes", shapes.size());
 
-    // Выведите индекс каждой фигуры и её высоту
+    for (size_t i = 0; i < shapes.size(); ++i) {
+        const auto &shape = shapes[i];
+        shape.visit([i](auto &&v){
+            std::println("Фигура №{} имеет высоту {:.4}", i, v.Height());
+        });
+    }
 
     //
     // Вызываем разработанные функции
     //
     PrintAllIntersections(shapes[0], shapes);
-
     PrintDistancesFromPointToShapes(Point2D{10.0, 10.0}, shapes);
-
     PerformShapeAnalysis(shapes);
-
     PerformExtraShapeAnalysis(shapes);
 
     //
@@ -111,7 +134,6 @@ int main() {
         //
         // Используйте список точек points или свой, чтобы
         // выполнить алгоритм триангуляции Делоне алгоритмом Боуэра-Ватсона
-        //
         // После успешного завершения алгоритма - выведите результат для проверки
         // используя geometry::visualization::Draw
         //
