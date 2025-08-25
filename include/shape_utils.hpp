@@ -2,7 +2,6 @@
 
 #include "geometry.hpp"
 #include "queries.hpp"
-#include <print>
 #include <random>
 #include <ranges>
 #include <utility>
@@ -64,24 +63,21 @@ private:
     std::uniform_int_distribution<int> type_dist;
 };
 
-std::vector<std::pair<Shape, Shape>> FindAllCollisions(const std::vector<Shape> &shapes) {
+std::vector<std::pair<Shape, Shape>> FindAllCollisions(std::span<const Shape> shapes) {
     return std::views::cartesian_product(shapes, shapes)
         | std::views::filter([](const auto &p){
-            const auto visiter = [](auto &&shape1, auto &&shape2) {
-                const auto bbox1 = shape1.GetBoundingBox();
-                const auto bbox2 = shape2.GetBoundingBox();
-                if (bbox1 == bbox2) {
-                    return false;
-                } else {
-                    return bbox1.Overlaps(bbox2);
-                }
-            };
-            return std::visit(visiter, std::get<0>(p), std::get<1>(p));
+            const auto &shape1 = std::get<0>(p);
+            const auto &shape2 = std::get<1>(p);
+            if (shape1 == shape2) {
+                return false;
+            } else {
+                return queries::BoundingBoxesOverlaps(shape1, shape2);
+            }
         })
         | std::ranges::to<std::vector<std::pair<Shape, Shape>>>();
 }
 
-std::optional<Shape> FindHighestShape(const std::vector<Shape> &shapes) {
+std::optional<std::pair<Shape, Shape>> FindLowestAndHighestShape(std::span<const Shape> shapes) {
     if (shapes.size() == 0) {
         return std::nullopt;
     } else {
@@ -89,7 +85,26 @@ std::optional<Shape> FindHighestShape(const std::vector<Shape> &shapes) {
         const auto height_comp = [&height_lambda](const auto &lhd, const auto &rhd) -> bool {
             return lhd.visit(height_lambda) < rhd.visit(height_lambda);
         };
-        return { *std::ranges::max_element(shapes, height_comp) };
+        const auto [min_y, max_y] = std::ranges::minmax_element(shapes, height_comp);
+        return {{*min_y, *max_y}};
+    }
+}
+
+std::optional<Shape> FindHighestShape(std::span<const Shape> shapes) {
+    const auto p = FindLowestAndHighestShape(shapes);
+    if (p.has_value()) {
+        return { std::get<1>(*p) };
+    } else {
+        return std::nullopt;
+    }
+}
+
+std::optional<Shape> FindLowestShape(std::span<const Shape> shapes) {
+    const auto p = FindLowestAndHighestShape(shapes);
+    if (p.has_value()) {
+        return { std::get<0>(*p) };
+    } else {
+        return std::nullopt;
     }
 }
 

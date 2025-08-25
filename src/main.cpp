@@ -14,9 +14,6 @@
 
 using namespace geometry;
 
-namespace rng = std::ranges;
-namespace views = std::ranges::views;
-
 void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
     std::println("\n=== Intersections ===");
 
@@ -68,83 +65,139 @@ void PrintDistancesFromPointToShapes(const Point2D &p, std::span<const Shape> sh
     }
 }
 
-void PerformShapeAnalysis(ReplaceMe shapes) {
+void PerformShapeAnalysis(std::span<const Shape> shapes) {
     std::println("\n=== Shape Analysis ===");
+    {
+        const auto collisions = utils::FindAllCollisions(shapes);
+        for (const auto &[shape1, shape2] : collisions) {
+            std::visit([](const auto &v1, const auto &v2) {
+                std::println("Ограничивающие прямоугольники фигур {} и {} перекрываются", v1, v2);
+            }, shape1, shape2);
+        }
+    }
+    {
+        const auto highestShape = utils::FindHighestShape(shapes);
+        if (highestShape) {
+            (*highestShape).visit([](auto &&v){
+                std::println("Фигура с наибольшей *высотой* {} (Y = {:.4})", v, v.Height());
+            });
+        }
+    }
+    {
+        auto pairs_view = std::views::cartesian_product(shapes, shapes)
+            | std::views::filter([](const auto &p){
+                return std::get<0>(p) != std::get<1>(p);
+            });
 
-    /*
-     * Используйте ranges и созданные классы чтобы:
-     *     - Найти все пересечения между фигурами используя метод Bounding Box
-     *     - Найти самую высокую фигуру (чья высота наибольшая)
-     *     - Вывести расстояние между любыми двумя фигурами, которые поддерживают данную функциональность
-     */
+        for (const auto &[shape1, shape2] : pairs_view) {
+            const auto maybe_dist = queries::DistanceBetweenShapes(shape1, shape2);
+            if (!maybe_dist.has_value()) {
+                continue;
+            }
+            std::visit([&maybe_dist](const auto &v1, const auto &v2) {
+                std::println("Расстояние между фигурами {} и {} равно {:.4}", v1, v2, maybe_dist.value());
+            }, shape1, shape2);
+        }
+    }
 }
 
 void PerformExtraShapeAnalysis(std::span<const Shape> shapes) {
     std::println("\n=== Shape Extra Analysis ===");
+    {
+        constexpr size_t num = 3;
+        constexpr double min_height = 50.0;
+        auto shapes_view = shapes
+            | std::views::filter([min_height](auto &&shape){
+                return shape.visit([](auto &&v){ return v.Height(); }) > min_height;
+            })
+            | std::views::take(num);
 
-    /*
-     * Используйте ranges и созданные классы чтобы:
-     *     - Вывести 3 любые фигуры, которые находятся выше 50.0
-     *     - Вывести фигуры с наименьшей и с наибольшей высотами
-     */
+        for (const auto &shape : shapes_view) {
+            shape.visit([min_height](auto &&v){
+                std::println("Фигура {} находится выше Y-координаты {}", v, min_height);
+            });
+        }
+    }
+    {
+        const auto highestShape = utils::FindHighestShape(shapes);
+        if (highestShape) {
+            (*highestShape).visit([](auto &&v){
+                std::println("Фигура с наибольшей *высотой* {} (Y = {:.4})", v, v.Height());
+            });
+        }
+    }
+    {
+        const auto lowestShape = utils::FindLowestShape(shapes);
+        if (lowestShape) {
+            (*lowestShape).visit([](auto &&v){
+                std::println("Фигура с наименьшей *высотой* {} (Y = {:.4})", v, v.Height());
+            });
+        }
+    }
 }
 
 int main() {
     utils::ShapeGenerator generator(-50.0, 50.0, 5.0, 25.0);
     std::vector<Shape> shapes = generator.GenerateShapes(15);
 
-    std::println("Generated {} random shapes", shapes.size());
+    {
+        std::println("Generated {} random shapes", shapes.size());
 
-    for (size_t i = 0; i < shapes.size(); ++i) {
-        const auto &shape = shapes[i];
-        shape.visit([i](auto &&v){
-            std::println("Фигура №{} имеет высоту {:.4}", i, v.Height());
-        });
+        for (size_t i = 0; i < shapes.size(); ++i) {
+            const auto &shape = shapes[i];
+            shape.visit([i](auto &&v){
+                std::println("Фигура №{} имеет высоту {:.4}", i, v.Height());
+            });
+        }
     }
 
     //
     // Вызываем разработанные функции
     //
-    PrintAllIntersections(shapes[0], {std::next(shapes.begin()), shapes.end()});
-    PrintDistancesFromPointToShapes(Point2D{10.0, 10.0}, shapes);
-    PerformShapeAnalysis(shapes);
-    PerformExtraShapeAnalysis(shapes);
-
-    //
-    // Рисуем все фигуры
-    //
-    // Важно: после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 2ой график
-    //
-    geometry::visualization::Draw(shapes);
-
-    //
-    // Формируем список из вершин всех фигур
-    //
-    std::vector<Point2D> points;
-
-    /* ваш код здесь */
-
-    //
-    // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема
-    // Создаём из них объект класса `Polygon` и добавляем его в список shapes
-    // Рисуем все фигуры
-    //
-
-    /* ваш код здесь */
-
-    //
-    // после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 3ий график
-    //
-
     {
-        std::vector<Point2D> points = {{0, 0}, {10, 0}, {5, 8}, {15, 5}, {2, 12}};
+        PrintAllIntersections(shapes[0], {std::next(shapes.begin()), shapes.end()});
+        PrintDistancesFromPointToShapes(Point2D{10.0, 10.0}, shapes);
+        PerformShapeAnalysis(shapes);
+        PerformExtraShapeAnalysis(shapes);
+        visualization::Draw(shapes);
+    }
 
-        //
-        // Используйте список точек points или свой, чтобы
-        // выполнить алгоритм триангуляции Делоне алгоритмом Боуэра-Ватсона
-        // После успешного завершения алгоритма - выведите результат для проверки
-        // используя geometry::visualization::Draw
-        //
+    //
+    // Формируем список из вершин всех фигур.
+    // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема.
+    // Создаём из них объект класса `Polygon` и добавляем его в список shapes.
+    // Рисуем все фигуры.
+    //
+    {
+        auto points = shapes
+            | std::views::transform([](auto &&shape){
+                return shape.visit([](auto &&v){ return v.Vertices(); });
+            })
+            | std::views::join
+            | std::ranges::to<std::vector>();
+        const auto conv = convex_hull::GrahamScan(points);
+
+        if (conv.has_value()) {
+            shapes.emplace_back(Polygon{conv.value()});
+            visualization::Draw(shapes);
+        } else {
+            //throw std::logic_error("Cannot construct convex hull\n");
+        }
+    }
+
+    //
+    // после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 3-ий график
+    //
+    {
+        std::span<const Point2D> points {{0, 0}, {10, 0}, {5, 8}, {15, 5}, {2, 12}};
+        const auto tri = triangulation::DelaunayTriangulation(points);
+
+        if (tri.has_value()) {
+            std::vector<Shape> tshapes {tri.value().begin(), tri.value().end()};
+            visualization::Draw(tshapes);
+        } else {
+            throw std::logic_error("Cannot construct Delaunay triangulation\n");
+        }
     }
 
     return 0;

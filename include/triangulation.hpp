@@ -66,11 +66,10 @@ inline GeometryResult<std::vector<Triangle>> DelaunayTriangulation(std::span<con
         triangulation.swap(next_triangulation);
     }
 
-    triangulation.erase(
-        std::remove_if(
-            triangulation.begin(),
-            triangulation.end(),
-            [&super_triangle](const auto &t){ return t.SharesVertex(super_triangle); })
+    std::erase_if(triangulation,
+        [&super_triangle](const auto &t) {
+            return t.SharesVertex(super_triangle);
+        }
     );
 
     return triangulation;

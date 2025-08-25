@@ -82,11 +82,11 @@ inline bool BoundingBoxesOverlaps(const Shape &shape1, const Shape &shape2) {
     return bbox1.Overlaps(bbox2);
 }
 
-std::optional<double> DistanceBetweenShapes(const Shape &shape1, const Shape &shape2) {
+inline GeometryResult<double> DistanceBetweenShapes(const Shape &shape1, const Shape &shape2) {
     const auto visiter = ShapeToShapeDistanceVisitor {
-        [](const Line &line1, const Line &line2) -> std::optional<double> {
+        [](const Line &line1, const Line &line2) -> GeometryResult<double> {
             if (line1.SharesSameLine(line2) && line1.Overlaps(line2)) {
-                return { 0.0 };
+                return 0.0;
             }
             else if (line1.IsParallelTo(line2) && line1.Overlaps(line2)) {
                 const auto data1 = line1.LineCoeffs();
@@ -96,7 +96,7 @@ std::optional<double> DistanceBetweenShapes(const Shape &shape1, const Shape &sh
                     const auto [k2, b2] = *data2;
                     if (std::abs(k1) < eps() && std::abs(k2) < eps()) {
                         // Две прямые y = Const1 и y = Const2
-                        return { std::abs(b2 - b1) };
+                        return std::abs(b2 - b1);
                     }
                     else if (std::abs(k1) > eps() && std::abs(k2) > eps()) {
                         const auto dist = std::abs(
@@ -106,7 +106,7 @@ std::optional<double> DistanceBetweenShapes(const Shape &shape1, const Shape &sh
                                 (b2 - b1) * (b2 - b1) + ((k1 * b2 - k2 * b1) * (k1 * b2 - k2 * b1)) / (k1 * k1 * k2 * k2)
                             )
                         );
-                        return { dist };
+                        return dist;
                     }
                     else {
                         throw std::logic_error("Angle coefficients are differ, but lines must be parallel");
@@ -114,32 +114,32 @@ std::optional<double> DistanceBetweenShapes(const Shape &shape1, const Shape &sh
                 }
                 else if (!data1 && !data2) {
                     // Две прямые x = Const1 и x = Const2
-                    return { std::abs(line1.start.x - line2.start.x) };
+                    return std::abs(line1.start.x - line2.start.x);
                 }
                 else {
                     throw std::logic_error("Lines must be parallel, but they are not");
                 }
-                return {};
+                return 0.0;
             }
             else {
                 const auto ss = line1.start.DistanceTo(line2.start);
                 const auto se = line1.start.DistanceTo(line2.end);
                 const auto es = line1.end.DistanceTo(line2.start);
                 const auto ee = line1.end.DistanceTo(line2.end);
-                return { std::min({ ss, se, es, ee }) };
+                return std::min({ ss, se, es, ee });
             }
         },
-        [](const Circle &circle1, const Circle &circle2) -> std::optional<double> {
+        [](const Circle &circle1, const Circle &circle2) -> GeometryResult<double> {
             const auto l = Line{circle1.center_p, circle2.center_p}.Length();
 
             if (l > circle1.radius + circle2.radius) {
-                return { l - circle1.radius - circle2.radius };
+                return l - circle1.radius - circle2.radius;
             } else {
-                return { 0.0 };
+                return 0.0;
             }
         },
-        [](const auto &v1, const auto &v2) -> std::optional<double> {
-            return std::nullopt;
+        [](const auto &v1, const auto &v2) -> GeometryResult<double> {
+            return std::unexpected{GeometryError::Unsupported};
         },
     };
     return std::visit(visiter, shape1, shape2);

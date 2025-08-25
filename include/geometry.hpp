@@ -11,7 +11,6 @@
 #include <print>
 #include <random>
 #include <ranges>
-#include <set>
 #include <span>
 #include <variant>
 #include <vector>
@@ -152,9 +151,10 @@ struct Line {
     constexpr inline Point2D::ValueType Height() const { return std::max(start.y, end.y); }
     constexpr inline BoundingBox GetBoundingBox() const { return BoundingBox(start, end); }
     constexpr inline Point2D Center() const { return (end - start) / 2.0; }
-    constexpr inline std::array<Point2D, 2> Vertices() const { return {start, end}; }
     constexpr inline Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
     constexpr inline Point2D Direction() const { return (end - start).Normalize(); }
+
+    inline std::vector<Point2D> Vertices() const { return {start, end}; }
 
     // Коэффициенты прямой, которая содержит этот отрезок находим из уравнения:
     // y = k * x + b
@@ -448,8 +448,6 @@ struct Triangle {
     }
 
     constexpr inline double Height() const { return std::max({ a.y, b.y, c.y }); }
-
-    constexpr inline std::array<Point2D, 3> Vertices() const { return {a, b, c}; }
     constexpr inline Lines2D<4> Lines() const { return {{a.x, b.x, c.x, a.x}, {a.y, b.y, c.y, a.y}}; }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
@@ -472,15 +470,16 @@ struct Triangle {
         }
     }
 
-    std::vector<Line> GetFaces() const {
+    inline std::vector<Point2D> Vertices() const { return {a, b, c}; }
+    inline std::vector<Line> GetFaces() const {
         return { { a, b }, { b, c }, { c, a } };
     }
 
-    constexpr bool CircumCircleContainsPoint(const Point2D &p) const {
+    constexpr inline bool CircumCircleContainsPoint(const Point2D &p) const {
         return CircumCenter().DistanceTo(p) <= CircumRadius() + eps();
     }
 
-    constexpr Point2D CircumCenter() const {
+    constexpr inline Point2D CircumCenter() const {
         const double d = 2.0 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
 
         if (std::abs(d) < eps()) {
@@ -502,11 +501,11 @@ struct Triangle {
         return { ux, uy };
     }
 
-    constexpr double CircumRadius() const {
+    constexpr inline double CircumRadius() const {
         return CircumCenter().DistanceTo(a);
     }
 
-    constexpr bool SharesFace(const Triangle &other) const {
+    constexpr inline bool SharesFace(const Triangle &other) const {
         const std::span<const Point2D> this_points = {a, b, c};
         const std::span<const Point2D> other_points = {other.a, other.b, other.c};
         size_t shared_count = 0;
@@ -523,9 +522,12 @@ struct Triangle {
         return shared_count == 2;
     }
 
-    constexpr bool SharesVertex(const Triangle &other) const {
-        std::set<Point2D> u {a, b, c, other.a, other.b, other.c };
-        return u.size() < 6;
+    constexpr inline bool SharesVertex(const Triangle &other) const {
+        return
+            a == other.a || a == other.b || a == other.c ||
+            b == other.a || b == other.b || b == other.c ||
+            c == other.a || c == other.b || c == other.c
+        ;
     }
 };
 
@@ -540,7 +542,6 @@ struct Rectangle {
     constexpr inline BoundingBox GetBoundingBox() const { return {left_bottom, left_bottom + Point2D{width, height}}; }
     constexpr inline double Height() const { return left_bottom.y + height; }
     constexpr inline double Width() const { return width; }
-    constexpr inline std::array<Point2D, 1> Vertices() const { return {{ left_bottom }}; }
     constexpr inline Lines2D<1> Lines() const { return {{left_bottom.x}, {left_bottom.y}}; }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
@@ -548,7 +549,10 @@ struct Rectangle {
         return left_bottom <= p && p <= top_right;
     }
 
-    std::vector<Line> GetFaces() const {
+    inline std::vector<Point2D> Vertices() const {
+        return {{ left_bottom }};
+    }
+    inline std::vector<Line> GetFaces() const {
         return {
             { left_bottom, Point2D{left_bottom.x + width, left_bottom.y}  },
             { left_bottom, Point2D{left_bottom.x, left_bottom.y + height} },
@@ -582,10 +586,9 @@ struct RegularPolygon {
     constexpr inline Point2D Center() const { return center_p; }
     constexpr inline double Height() const { return center_p.y + radius; }
 
-    std::vector<Point2D> Vertices() const {
+    inline std::vector<Point2D> Vertices() const {
         std::vector<Point2D> points;
         points.reserve(sides);
-
         for (int i = 0; i < sides; ++i) {
             const double angle = 2.0 * std::numbers::pi * i / sides;
             points.emplace_back(
@@ -596,7 +599,7 @@ struct RegularPolygon {
         return points;
     }
 
-    Lines2DDyn Lines() const {
+    inline Lines2DDyn Lines() const {
         auto vertices = Vertices();
         auto res = Lines2DDyn{};
         res.Reserve(vertices.size() + 1);
@@ -623,7 +626,7 @@ struct RegularPolygon {
         return false;
     }
 
-    std::vector<Line> GetFaces() const {
+    inline std::vector<Line> GetFaces() const {
         std::vector<Line> faces;
         const auto v = Vertices();
         for (int i = 0; i < v.size(); ++i) {
@@ -651,7 +654,7 @@ struct Circle {
     constexpr inline double Height() const { return center_p.y + radius; }
     constexpr inline Point2D Center() const { return center_p; }
 
-    std::vector<Point2D> Vertices(size_t N = 30) const {
+    inline std::vector<Point2D> Vertices(size_t N = 30) const {
         std::vector<Point2D> points;
         points.reserve(N);
 
@@ -665,7 +668,7 @@ struct Circle {
         return points;
     }
 
-    Lines2DDyn Lines(size_t N = 100) const {
+    inline Lines2DDyn Lines(size_t N = 100) const {
         auto vertices = Vertices(N);
         auto res = Lines2DDyn{};
         res.Reserve(vertices.size() + 1);
@@ -806,9 +809,9 @@ public:
         return { {(*min_x).x, (*min_y).y}, {(*max_x).x, (*max_y).y} };
     }
 
-    std::vector<Point2D> Vertices() const { return vertices; }
+    inline std::vector<Point2D> Vertices() const { return vertices; }
 
-    Lines2DDyn Lines() const {
+    inline Lines2DDyn Lines() const {
         auto vertices = Vertices();
         auto res = Lines2DDyn{};
         res.Reserve(vertices.size() + 1);
@@ -839,7 +842,7 @@ public:
         return std::ranges::fold_left(res, 0, std::plus<int>()) < 0;
     }
 
-    std::vector<Line> GetFaces() const {
+    inline std::vector<Line> GetFaces() const {
         std::vector<Line> faces;
         const auto v = Vertices();
         for (int i = 0; i < v.size(); ++i) {
@@ -912,10 +915,6 @@ enum class GeometryError { Unsupported, NoIntersection, InvalidInput, Degenerate
 template <typename T>
 using GeometryResult = std::expected<T, GeometryError>;
 
-struct ReplaceMe {
-    ReplaceMe(std::vector<Shape>) {}
-};
-
 }  // namespace geometry
 
 template <>
@@ -982,8 +981,7 @@ struct std::formatter<geometry::Rectangle> {
 
     template <typename FormatContext>
     auto format(const geometry::Rectangle &r, FormatContext &ctx) const {
-        return std::format_to(ctx.out(), "Rectangle(bottom_left={}, w={:.2f}, h={:.2f})", r.left_bottom, r.width,
-                              r.height);
+        return std::format_to(ctx.out(), "Rectangle(bottom_left={}, w={:.2f}, h={:.2f})", r.left_bottom, r.width, r.height);
     }
 };
 
@@ -993,8 +991,7 @@ struct std::formatter<geometry::RegularPolygon> {
 
     template <typename FormatContext>
     auto format(const geometry::RegularPolygon &p, FormatContext &ctx) const {
-        return std::format_to(ctx.out(), "RegularPolygon(center={}, r={:.2f}, sides={})", p.center_p, p.radius,
-                              p.sides);
+        return std::format_to(ctx.out(), "RegularPolygon(center={}, r={:.2f}, sides={})", p.center_p, p.radius, p.sides);
     }
 };
 
@@ -1016,11 +1013,9 @@ struct std::formatter<geometry::Polygon> {
     auto format(const geometry::Polygon &poly, FormatContext &ctx) const {
         auto out = ctx.out();
         out = std::format_to(out, "Polygon[{} points]: [", poly.Vertices().size());
-
         for (const auto &p : poly.Vertices()) {
             out = std::format_to(out, "{} ", p);
         }
-
         return std::format_to(out, "]");
     }
 };
