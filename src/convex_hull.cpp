@@ -19,7 +19,7 @@ GeometryResult<std::vector<Point2D>> GrahamScan(std::vector<Point2D> &points) {
     });
 
     std::ranges::sort(points, [&p0](const Point2D &a, const Point2D &b) {
-        const auto crossp = CrossProduct(p0, a, b);
+        const auto crossp = CrossProduct(a, p0, b);
 
         if (std::abs(crossp) < eps()) {
             return p0.DistanceTo(a) < p0.DistanceTo(b);

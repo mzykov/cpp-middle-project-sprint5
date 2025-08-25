@@ -53,7 +53,14 @@ inline GeometryResult<std::vector<Triangle>> DelaunayTriangulation(std::span<con
             triangulation.pop_back();
 
             if (PointViolatesDelaunayConditionForTriangle(p, t)) {
-                polygonal_hole.insert_range(t.GetFaces());
+                for (const auto &face : t.GetFaces()) {
+                    auto already_it = polygonal_hole.find(face);
+                    if (already_it == polygonal_hole.end()) {
+                        polygonal_hole.insert(face);
+                    } else {
+                        polygonal_hole.erase(already_it);
+                    }
+                }
             } else {
                 next_triangulation.push_back(std::move(t));
             }
@@ -73,33 +80,6 @@ inline GeometryResult<std::vector<Triangle>> DelaunayTriangulation(std::span<con
     );
 
     return triangulation;
-
-    /*
-    Цикл по всем точкам
-        Для каждой новой точки:
-            В цикле
-                Находятся все "плохие" треугольники (из текущей триангуляции),
-                в чьи описанные окружности входит эта точка (ContainsPoint);
-                "плохими" называются треугольники, нарушающие условие Делоне
-                (внутри окружности не должно быть других точек);
-
-                Для всех рёбер этих треугольников формируется множество polygon, причём:
-                    - Если ребро ещё не встречалось - оно добавляется в polygon.
-                    - Если ребро встречается второй раз - оно удаляется из polygon.
-
-            Получившееся множество polygon - это граница "дырки" (polygonal hole), которую нужно заполнить новыми
-    треугольниками
-
-            Теперь требуется удалить из текущей триангуляции все плохие треугольники: cur_triangulation.erase(
-    bad_triangles.contains(*it) )
-
-            Для каждой границы "дырки" (polygonal hole) создаются новые треугольники с новой точкой: { ТочкаРебра1,
-    ТочкаРебра2, НоваяТочка }.
-
-    Конец цикла
-
-    Удаляем все треугольники, включающие вершины супер-треугольника.
-    */
 }
 
 }  // namespace geometry::triangulation
