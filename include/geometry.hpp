@@ -19,21 +19,17 @@ namespace geometry {
 
 constexpr inline double eps() { return 1e-10; }
 
-/*
- * Добавьте к методам класса Point2D и Lines2DDyn все необходимые аттрибуты и спецификаторы
- * Важно: Возвращаемый тип и принимаемые аргументы менять не нужно
- */
 struct Point2D {
-    using ValueType = double;
-    ValueType x, y;
+    double x, y;
 
     constexpr Point2D() : x(0), y(0) {}
-    constexpr Point2D(ValueType x, ValueType y) : x(x), y(y) {}
+    constexpr Point2D(double x, double y) : x(x), y(y) {}
 
     // Comparison
+    constexpr inline bool operator==(const Point2D &other) const { return std::abs(x - other.x) < eps() && std::abs(y - other.y) < eps(); }
+    constexpr inline bool operator!=(const Point2D &other) const { return !(*this == other); }
     constexpr inline bool operator<(const Point2D &other) const { return x < other.x && y < other.y; }
     constexpr inline bool operator<=(const Point2D &other) const { return x <= other.x && y <= other.y; }
-    constexpr inline bool operator==(const Point2D &other) const { return std::abs(x - other.x) < eps() && std::abs(y - other.y) < eps(); }
 
     // Binary math operators
     constexpr inline Point2D operator+(const Point2D &other) const { return {x + other.x, y + other.y}; }
@@ -81,8 +77,8 @@ struct Lines2DDyn {
 struct BoundingBox {
     const Point2D left_bottom, right_top;
 
-    BoundingBox() = default;
-    BoundingBox(const Point2D &lb, const Point2D &rt) :
+    constexpr BoundingBox() = default;
+    constexpr BoundingBox(const Point2D &lb, const Point2D &rt) :
         left_bottom(lb < rt ? lb : rt),
         right_top(lb < rt ? rt : lb) {
             if (left_bottom.x == right_top.x || left_bottom.y == right_top.y) {
@@ -111,21 +107,21 @@ struct BoundingBox {
     }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
-        return left_bottom < p && p < right_top;
+        return left_bottom <= p && p <= right_top;
     }
 
-    constexpr inline Point2D::ValueType Left()   const { return left_bottom.x; }
-    constexpr inline Point2D::ValueType Right()  const { return right_top.x; }
-    constexpr inline Point2D::ValueType Bottom() const { return left_bottom.y; }
-    constexpr inline Point2D::ValueType Top()    const { return right_top.y; }
-    constexpr inline Point2D::ValueType Width()  const { return (right_top - left_bottom).x; }
-    constexpr inline Point2D::ValueType Height() const { return (right_top - left_bottom).y; }
+    constexpr inline double Left()   const { return left_bottom.x; }
+    constexpr inline double Right()  const { return right_top.x; }
+    constexpr inline double Bottom() const { return left_bottom.y; }
+    constexpr inline double Top()    const { return right_top.y; }
+    constexpr inline double Width()  const { return (right_top - left_bottom).x; }
+    constexpr inline double Height() const { return (right_top - left_bottom).y; }
 
     constexpr inline Point2D LeftBottom()  const { return left_bottom; }
     constexpr inline Point2D RightTop()    const { return right_top; }
     constexpr inline Point2D LeftTop()     const { return Point2D{left_bottom.x, right_top.y}; }
     constexpr inline Point2D RightBottom() const { return Point2D{right_top.x, left_bottom.y}; }
-    constexpr inline Point2D Center()      const { return (right_top - left_bottom) / 2.0; }
+    constexpr inline Point2D Center()      const { return left_bottom + ((right_top - left_bottom) / 2.0); }
 };
 
 struct Line {
@@ -147,8 +143,8 @@ struct Line {
         return end.y < other.end.y;
     }
 
-    constexpr inline Point2D::ValueType Length() const { return start.DistanceTo(end); }
-    constexpr inline Point2D::ValueType Height() const { return std::max(start.y, end.y); }
+    constexpr inline double Length() const { return start.DistanceTo(end); }
+    constexpr inline double Height() const { return std::max(start.y, end.y); }
     constexpr inline BoundingBox GetBoundingBox() const { return BoundingBox(start, end); }
     constexpr inline Point2D Center() const { return (end - start) / 2.0; }
     constexpr inline Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
@@ -550,7 +546,12 @@ struct Rectangle {
     }
 
     inline std::vector<Point2D> Vertices() const {
-        return {{ left_bottom }};
+        return {
+            left_bottom,
+            Point2D{left_bottom.x + width, left_bottom.y},
+            Point2D{left_bottom.x, left_bottom.y + height},
+            Point2D{left_bottom.x + width, left_bottom.y + height}
+        };
     }
     inline std::vector<Line> GetFaces() const {
         return {
