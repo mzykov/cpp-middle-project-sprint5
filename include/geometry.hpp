@@ -131,9 +131,10 @@ struct Line {
         start(s.x < e.x ? s : s.x > e.x ? e : s.y <= e.y ? s : e),
         end(s.x < e.x ? e : s.x > e.x ? s : s.y <= e.y ? e : s) {}
 
-    constexpr inline bool operator==(const Line &other) const { return start == other.start && end == other.end; }
+    constexpr inline bool operator==(const Line &other) const = default;
+    constexpr inline bool operator!=(const Line &other) const = default;
 
-    constexpr bool operator<(const Line &other) const {
+    constexpr inline bool operator<(const Line &other) const {
         if (std::abs(start.x - other.start.x) > eps())
             return start.x < other.start.x;
         if (std::abs(start.y - other.start.y) > eps())
@@ -143,10 +144,11 @@ struct Line {
         return end.y < other.end.y;
     }
 
+    constexpr inline bool IsVertical() const { return start.x == end.x; }
     constexpr inline double Length() const { return start.DistanceTo(end); }
     constexpr inline double Height() const { return std::max(start.y, end.y); }
     constexpr inline BoundingBox GetBoundingBox() const { return BoundingBox(start, end); }
-    constexpr inline Point2D Center() const { return (end - start) / 2.0; }
+    constexpr inline Point2D Center() const { return start + ((end - start) / 2.0); }
     constexpr inline Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
     constexpr inline Point2D Direction() const { return (end - start).Normalize(); }
 
@@ -224,21 +226,27 @@ struct Line {
 
     constexpr std::optional<Point2D> GetIntersectPoint(const Line &other) const {
         if (*this == other) {
-            return { (end - start) / 2.0 };
+            return { start + ((end - start) / 2.0) };
         }
         else if (IsParallelTo(other)) {
             return std::nullopt;
         }
         else if (SharesSameLine(other)) {
-            if (ContainsPoint(other.start)) {
-                return { Line{other.start, end}.Center() };
+            std::vector<Point2D> points {start, end, other.start, other.end};
+
+            if (IsVertical()) {
+                if (end.y < other.start.y || other.end.y < start.y) {
+                    return std::nullopt;
+                }
+                std::ranges::sort(points, {}, &Point2D::y);
+            } else {
+                if (end.x < other.start.x || other.end.x < start.x) {
+                    return std::nullopt;
+                }
+                std::ranges::sort(points, {}, &Point2D::x);
             }
-            else if (ContainsPoint(other.end)) {
-                return { Line{start, other.end}.Center() };
-            }
-            else {
-                return std::nullopt;
-            }
+
+            return { Line{points[1], points[2]}.Center() };
         }
         else {
             const auto data = LineCoeffs();
@@ -258,9 +266,14 @@ struct Line {
                         return std::nullopt;
                     }
                 } else {
-                    const double x = (k - k_other) / (b_other - b);
+                    const double x = (b_other - b) / (k - k_other);
                     const double y = k * x + b;
-                    return {{x, y}};
+                    const auto p = Point2D{x, y};
+                    if (ContainsPoint(p) && other.ContainsPoint(p)) {
+                        return { std::move(p) };
+                    } else {
+                        return std::nullopt;
+                    }
                 }
             }
             else if (data && !other_data) {
