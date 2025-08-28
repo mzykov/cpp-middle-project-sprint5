@@ -239,7 +239,8 @@ struct Line {
                     return std::nullopt;
                 }
                 std::ranges::sort(points, {}, &Point2D::y);
-            } else {
+            }
+            else {
                 if (end.x < other.start.x || other.end.x < start.x) {
                     return std::nullopt;
                 }
@@ -251,58 +252,39 @@ struct Line {
         else {
             const auto data = LineCoeffs();
             const auto other_data = other.LineCoeffs();
+            Point2D cross_point;
 
             if (data && other_data) {
                 const auto [k, b] = *data;
                 const auto [k_other, b_other] = *other_data;
 
-                if (std::abs(b - b_other) < eps()) {
-                    // Базовые прямые пересекаются в точке {0.0, b},
-                    // Если эта точка принадлежит отрезкам, то они пересекаются
-                    const auto p = Point2D{0.0, b};
-                    if (ContainsPoint(p) && other.ContainsPoint(p)) {
-                        return { std::move(p) };
-                    } else {
-                        return std::nullopt;
-                    }
-                } else {
-                    const double x = (b_other - b) / (k - k_other);
-                    const double y = k * x + b;
-                    const auto p = Point2D{x, y};
-                    if (ContainsPoint(p) && other.ContainsPoint(p)) {
-                        return { std::move(p) };
-                    } else {
-                        return std::nullopt;
-                    }
-                }
+                // Две прямые в общем положении (не параллельные!)
+                const double x = (b_other - b) / (k - k_other);
+                const double y = k * x + b;
+                cross_point = Point2D{x, y};
             }
             else if (data && !other_data) {
                 const auto [k, b] = *data;
                 // Другая прямая представляет собой вертикальную линию x = С1,
                 // Поэтому точка пересечения есть {C1, k * C1 + b}
-                // Если эта точка принадлежит отрезкам, то они пересекаются
-                const auto p = Point2D{other.start.x, k * other.start.x + b};
-                if (ContainsPoint(p) && other.ContainsPoint(p)) {
-                    return { std::move(p) };
-                } else {
-                    return std::nullopt;
-                }
+                cross_point = Point2D{other.start.x, k * other.start.x + b};
             }
             else if (!data && other_data) {
                 const auto [k_other, b_other] = *other_data;
                 // Первая прямая представляет собой вертикальную линию x = С1,
                 // Поэтому точка пересечения есть {C1, k_other * C1 + b_other}
-                // Если эта точка принадлежит отрезкам, то они пересекаются
-                const auto p = Point2D{start.x, k_other * start.x + b_other};
-                if (ContainsPoint(p) && other.ContainsPoint(p)) {
-                    return { std::move(p) };
-                } else {
-                    return std::nullopt;
-                }
+                cross_point = Point2D{start.x, k_other * start.x + b_other};
             }
             else {
                 // Здесь две вертикальные параллельные прямые, но этот случай обработан выше
                 throw std::logic_error("Incorrect calculation of intersection point");
+            }
+
+            // Если точка пересечения базовых прямых принадлежит отрезкам, то они пересекаются
+            if (ContainsPoint(cross_point) && other.ContainsPoint(cross_point)) {
+                return { std::move(cross_point) };
+            } else {
+                return std::nullopt;
             }
         }
     }

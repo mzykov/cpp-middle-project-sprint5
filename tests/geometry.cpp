@@ -73,7 +73,7 @@ TEST(TestGeometry, TestLine) {
         x_const2{{0.00003, -1.0}, {0.00003, 3.7}},
         x_const3{{1.0, 1.0}, {1.0, 2.0}},
         x_const3_o{{1.0, 0.5}, {1.0, 2.5}},
-        y_const1{{5.2, -0.03}, {-0.2, -0.03}},
+        y_const1{{5.2, -0.03}, {-0.99, -0.03}},
         y_const1_r{{1.2, -0.03}, {1e8, -0.03}},
         y_const2{{1.1, 1e7}, {1.11, 1e7}}
     ;
@@ -114,4 +114,7 @@ TEST(TestGeometry, TestLine) {
     EXPECT_TRUE((x_const3.GetIntersectPoint(x_const3_o).value() == Point2D{1.0, 1.5}));
     EXPECT_TRUE((line1.GetIntersectPoint(line2).value() == point1));
     EXPECT_TRUE(x_const2.GetIntersectPoint(line1_par).has_value());
+    EXPECT_TRUE(line1_par.GetIntersectPoint(x_const2).has_value());
+    EXPECT_TRUE(line1_par.GetIntersectPoint(y_const1).has_value());
+    EXPECT_TRUE(y_const1.GetIntersectPoint(line1_par).has_value());
 }
