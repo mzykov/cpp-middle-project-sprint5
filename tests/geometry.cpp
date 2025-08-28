@@ -3,6 +3,7 @@
 #include "geometry.hpp"
 #include <cassert>
 #include <cmath>
+#include <print>
 
 using namespace geometry;
 
@@ -134,4 +135,63 @@ TEST(TestGeometry, TestLine) {
     EXPECT_TRUE(line2.ContainsPoint(line2.GetRandomPoint()));
     EXPECT_TRUE(x_const1.ContainsPoint(x_const1.GetRandomPoint()));
     EXPECT_TRUE(y_const1.ContainsPoint(y_const1.GetRandomPoint()));
+}
+
+TEST(TestGeometry, TestTriangle) {
+    // given
+    constexpr Point2D origin{0.0, 0.0};
+    constexpr Triangle egypt{{1.0, 1.0}, {1.0, 4.0}, {5.0, 1.0}};
+    // when
+    // then
+    EXPECT_TRUE((egypt == egypt));
+    EXPECT_DOUBLE_EQ(egypt.Area(), 6.0);
+    EXPECT_DOUBLE_EQ(egypt.Height(), 4.0);
+    EXPECT_TRUE((egypt.Center() == Point2D{7.0/3.0, 2.0}));
+    EXPECT_TRUE((egypt.GetBoundingBox() == BoundingBox{{1.0, 1.0}, {5.0, 4.0}}));
+    // ContainsPoint
+    // EXPECT_TRUE();
+
+    // CircumCircleContainsPoint
+    //EXPECT_TRUE();
+
+    // CircumCenter
+    // EXPECT_TRUE();
+
+    // CircumRadius
+    // EXPECT_TRUE();
+
+    // SharesFace
+    // EXPECT_TRUE();
+
+    // SharesVertex
+    // EXPECT_TRUE();
+}
+
+TEST(TestGeometry, TestRectangle) {
+    // given
+    constexpr Point2D origin{0.0, 0.0};
+    constexpr Rectangle square{origin, 1.0, 1.0};
+    // when
+    // then
+    EXPECT_TRUE((square == square));
+    EXPECT_DOUBLE_EQ(square.Area(), 1.0);
+    EXPECT_TRUE((square.Center() == Point2D{0.5, 0.5}));
+    EXPECT_TRUE((square.GetBoundingBox() == BoundingBox{origin, {1.0, 1.0}}));
+    EXPECT_TRUE(square.ContainsPoint(square.Center()));
+
+    for (const auto &v : square.Vertices()) {
+        EXPECT_TRUE(square.ContainsPoint(v));
+    }
+}
+
+TEST(TestGeometry, TestRegularPolygon) {
+    
+}
+
+TEST(TestGeometry, TestCircle) {
+    
+}
+
+TEST(TestGeometry, TestPolygon) {
+    
 }

@@ -435,7 +435,7 @@ struct Triangle {
     constexpr inline bool operator==(const Triangle &other) const = default;
 
     constexpr inline double Area() const {
-        return (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2.0;
+        return std::abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2.0);
     }
 
     constexpr inline Point2D Center() const { return (a + b + c) / 3.0; }
