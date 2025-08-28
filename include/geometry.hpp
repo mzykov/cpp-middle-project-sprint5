@@ -293,6 +293,13 @@ struct Line {
         return { { start, end } };
     }
 
+    // Подразумевается, что свойство "перекрываться" актуально только
+    // для отрезков, лежащих на параллельных прямых или на одной прямой.
+    // Этот метод неявно подразумевает это требование.
+    // Если отрезки лежат на разных (параллельных) прямых, то чтобы понять,
+    // "перекрываются" они или нет, нужно сдвинуть одну прямую вдоль перпендикуляра
+    // и "совместить" её с другой прямой. Отрезки окажутся на одной прямой. И таким
+    // образом можно понять, перекрываются они или нет.
     constexpr inline bool Overlaps(const Line &other) const {
         const auto coeffs = LineCoeffs();
         const auto other_coeffs = other.LineCoeffs();
@@ -302,12 +309,12 @@ struct Line {
             const auto [k_other, b_other] = *other_coeffs;
 
             if (std::abs(k) < eps() && std::abs(k_other) < eps()) {
-                // Прямые типа y = Const
+                // Прямые: y = Const1, y = Const2
                 if (start.x <= other.start.x && other.start.x <= end.x) {
                     // Начало второго отрезка содержится в первом отрезке
                     return true;
                 }
-                else if (other.start.x <= start.x && start.x <= other.end.x) {
+                else if (start.x <= other.end.x && other.end.x <= end.x) {
                     // Конец второго отрезка содержится в первом отрезке
                     return true;
                 }
@@ -405,7 +412,9 @@ struct Line {
             return dist(re);
         };
         if (std::abs(start.x - end.x) >= eps() && std::abs(start.y - end.y) >= eps()) {
-            return Point2D{ get_random(start.x, end.x), get_random(start.y, end.y) };
+            const auto [k, b] = LineCoeffs().value();
+            const double x = get_random(start.x, end.x);
+            return Point2D{ x, k * x + b };
         }
         else if (std::abs(start.x - end.x) < eps() && std::abs(start.y - end.y) >= eps()) {
             return Point2D{ start.x, get_random(start.y, end.y) };

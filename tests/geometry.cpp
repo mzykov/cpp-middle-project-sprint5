@@ -117,4 +117,21 @@ TEST(TestGeometry, TestLine) {
     EXPECT_TRUE(line1_par.GetIntersectPoint(x_const2).has_value());
     EXPECT_TRUE(line1_par.GetIntersectPoint(y_const1).has_value());
     EXPECT_TRUE(y_const1.GetIntersectPoint(line1_par).has_value());
+    EXPECT_TRUE(line1.Overlaps(line1));
+    EXPECT_FALSE(line45_1.Overlaps(line45_2));
+    EXPECT_TRUE(line45_1.Overlaps(line45_15));
+    EXPECT_FALSE(line45_2.Overlaps(line45_15));
+    EXPECT_TRUE(line45_3.Overlaps(line45_1));
+    EXPECT_TRUE(line45_3.Overlaps(line45_15));
+    EXPECT_TRUE(line45_3.Overlaps(line45_2));
+    EXPECT_FALSE(x_const1.Overlaps(x_const1_u));
+    EXPECT_TRUE(x_const1.Overlaps(x_const1));
+    EXPECT_TRUE(x_const3.Overlaps(x_const3_o));
+    EXPECT_TRUE(y_const1.Overlaps(y_const1_r));
+    EXPECT_FALSE(y_const2.Overlaps(y_const1_r));
+    EXPECT_TRUE(line1.ContainsPoint(line1.GetRandomPoint()));
+    EXPECT_FALSE(line1.ContainsPoint(line1_par.GetRandomPoint()));
+    EXPECT_TRUE(line2.ContainsPoint(line2.GetRandomPoint()));
+    EXPECT_TRUE(x_const1.ContainsPoint(x_const1.GetRandomPoint()));
+    EXPECT_TRUE(y_const1.ContainsPoint(y_const1.GetRandomPoint()));
 }
