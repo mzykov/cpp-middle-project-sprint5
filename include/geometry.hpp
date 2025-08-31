@@ -75,7 +75,7 @@ struct Lines2DDyn {
 };
 
 struct BoundingBox {
-    const Point2D left_bottom, right_top;
+    Point2D left_bottom, right_top;
 
     constexpr BoundingBox() = default;
     constexpr BoundingBox(const Point2D &lb, const Point2D &rt) :
@@ -125,7 +125,7 @@ struct BoundingBox {
 };
 
 struct Line {
-    const Point2D start, end;
+    Point2D start, end;
 
     constexpr Line(const Point2D &s, const Point2D &e) :
         start(s.x < e.x ? s : s.x > e.x ? e : s.y <= e.y ? s : e),
@@ -433,6 +433,7 @@ struct Triangle {
     Point2D a, b, c;
 
     constexpr inline bool operator==(const Triangle &other) const = default;
+    constexpr inline bool operator!=(const Triangle &other) const = default;
 
     constexpr inline double Area() const {
         return std::abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2.0);
@@ -532,10 +533,11 @@ struct Triangle {
 };
 
 struct Rectangle {
-    const Point2D left_bottom;
+    Point2D left_bottom;
     double width, height;
 
     constexpr inline bool operator==(const Rectangle &other) const = default;
+    constexpr inline bool operator!=(const Rectangle &other) const = default;
 
     constexpr inline double Area() const { return width * height; }
     constexpr inline Point2D Center() const { return left_bottom + Point2D{width/2.0, height/2.0}; }
@@ -568,30 +570,38 @@ struct Rectangle {
 };
 
 struct RegularPolygon {
-    const Point2D center_p;
-    const double radius;
-    const int sides;
+    Point2D center_p;
+    double radius;
+    size_t sides;
 
-    constexpr RegularPolygon(Point2D center, double radius, int sides)
+    constexpr RegularPolygon(Point2D center, double radius, size_t sides)
         : center_p(center), radius(radius), sides(sides) {}
 
     constexpr inline bool operator==(const RegularPolygon &other) const = default;
+    constexpr inline bool operator!=(const RegularPolygon &other) const = default;
 
     constexpr inline double Area() const {
         return sides * radius * radius * sin(2.0 * std::numbers::pi / sides) / 2.0;
     }
 
     constexpr inline BoundingBox GetBoundingBox() const {
+        const auto vertices = Vertices();
+        const auto [min_x, max_x] = std::ranges::minmax_element(vertices, {}, &Point2D::x);
+        const auto [min_y, max_y] = std::ranges::minmax_element(vertices, {}, &Point2D::y);
         return {
-            { center_p.x - radius, center_p.y - radius },
-            { center_p.x + radius, center_p.y + radius }
+            { (*min_x).x, (*min_y).y }, { (*max_x).x, (*max_y).y }
         };
     }
 
     constexpr inline Point2D Center() const { return center_p; }
-    constexpr inline double Height() const { return center_p.y + radius; }
 
-    inline std::vector<Point2D> Vertices() const {
+    constexpr inline double Height() const {
+        const auto vertices = Vertices();
+        const auto max_elem = std::ranges::max_element(vertices, {}, &Point2D::y);
+        return (*max_elem).y;
+    }
+
+    std::vector<Point2D> Vertices() const {
         std::vector<Point2D> points;
         points.reserve(sides);
         for (int i = 0; i < sides; ++i) {

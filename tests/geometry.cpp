@@ -140,7 +140,11 @@ TEST(TestGeometry, TestLine) {
 TEST(TestGeometry, TestTriangle) {
     // given
     constexpr Point2D origin{0.0, 0.0};
-    constexpr Triangle egypt{{1.0, 1.0}, {1.0, 4.0}, {5.0, 1.0}};
+    constexpr Triangle
+        egypt{{1.0, 1.0}, {1.0, 4.0}, {5.0, 1.0}},
+        egypt_mirrorx{{1.0, 1.0}, {1.0, -2.0}, {5.0, 1.0}},
+        arbitrary_triangle{{1.0, 1.0}, {-13.8, 5.9997}, {100.44, -600.77}}
+    ;
     // when
     // then
     EXPECT_TRUE((egypt == egypt));
@@ -148,44 +152,82 @@ TEST(TestGeometry, TestTriangle) {
     EXPECT_DOUBLE_EQ(egypt.Height(), 4.0);
     EXPECT_TRUE((egypt.Center() == Point2D{7.0/3.0, 2.0}));
     EXPECT_TRUE((egypt.GetBoundingBox() == BoundingBox{{1.0, 1.0}, {5.0, 4.0}}));
-    // ContainsPoint
-    // EXPECT_TRUE();
+    EXPECT_TRUE(egypt.ContainsPoint(egypt.Center()));
+    EXPECT_FALSE(egypt.ContainsPoint(Point2D{1e8, 1e9}));
+    EXPECT_FALSE(egypt.ContainsPoint(origin));
+    EXPECT_FALSE(egypt_mirrorx.ContainsPoint(origin));
+    EXPECT_TRUE(arbitrary_triangle.ContainsPoint(origin));
 
-    // CircumCircleContainsPoint
-    //EXPECT_TRUE();
+    for (const auto &v : egypt.Vertices()) {
+        EXPECT_TRUE(egypt.ContainsPoint(v));
+        EXPECT_TRUE(egypt.CircumCircleContainsPoint(v));
+    }
 
-    // CircumCenter
-    // EXPECT_TRUE();
-
-    // CircumRadius
-    // EXPECT_TRUE();
-
-    // SharesFace
-    // EXPECT_TRUE();
-
-    // SharesVertex
-    // EXPECT_TRUE();
+    EXPECT_TRUE((egypt.CircumCenter() == Point2D{3.0, 2.5}));
+    EXPECT_FALSE(egypt.CircumCircleContainsPoint(origin));
+    EXPECT_TRUE(egypt.CircumCircleContainsPoint(Point2D{3.1, 2.6}));
+    EXPECT_TRUE(egypt.CircumCircleContainsPoint(Point2D{5.0, 4.0}));
+    EXPECT_TRUE(egypt.CircumCircleContainsPoint(egypt.Center()));
+    EXPECT_TRUE(egypt.SharesFace(egypt_mirrorx));
+    EXPECT_TRUE(egypt.SharesVertex(egypt_mirrorx));
+    EXPECT_TRUE(egypt.SharesVertex(arbitrary_triangle));
+    EXPECT_TRUE(arbitrary_triangle.SharesVertex(egypt_mirrorx));
 }
 
 TEST(TestGeometry, TestRectangle) {
     // given
     constexpr Point2D origin{0.0, 0.0};
-    constexpr Rectangle square{origin, 1.0, 1.0};
+    constexpr Rectangle
+        square{origin, 1.0, 1.0},
+        arbitrary_rectangle{Point2D{-5.0, -3.0}, 11.0, 11.0}
+    ;
     // when
     // then
     EXPECT_TRUE((square == square));
+    EXPECT_TRUE((square != arbitrary_rectangle));
     EXPECT_DOUBLE_EQ(square.Area(), 1.0);
+    EXPECT_DOUBLE_EQ(arbitrary_rectangle.Area(), 121.0);
     EXPECT_TRUE((square.Center() == Point2D{0.5, 0.5}));
+    EXPECT_TRUE((arbitrary_rectangle.Center() == Point2D{0.5, 2.5}));
     EXPECT_TRUE((square.GetBoundingBox() == BoundingBox{origin, {1.0, 1.0}}));
+    EXPECT_TRUE((arbitrary_rectangle.GetBoundingBox() == BoundingBox{arbitrary_rectangle.left_bottom, {6.0, 8.0}}));
     EXPECT_TRUE(square.ContainsPoint(square.Center()));
+    EXPECT_TRUE(arbitrary_rectangle.ContainsPoint(arbitrary_rectangle.Center()));
+    EXPECT_TRUE(arbitrary_rectangle.ContainsPoint(square.Center()));
 
     for (const auto &v : square.Vertices()) {
         EXPECT_TRUE(square.ContainsPoint(v));
+        EXPECT_TRUE(arbitrary_rectangle.ContainsPoint(v));
+    }
+    for (const auto &v : arbitrary_rectangle.Vertices()) {
+        EXPECT_TRUE(arbitrary_rectangle.ContainsPoint(v));
+        EXPECT_FALSE(square.ContainsPoint(v));
     }
 }
 
 TEST(TestGeometry, TestRegularPolygon) {
-    
+    // given
+    constexpr Point2D origin{0.0, 0.0};
+    constexpr RegularPolygon
+        triangle{origin, 5.0, 3},
+        square{origin, 1.0, 4},
+        pentagon{origin, 33.3333333333, 5},
+        hexagon{Point2D{1.0, 3.0}, 2.71, 6},
+        heptagon{origin, 0.0005, 7},
+        octagon{Point2D{-5.0, -3.0}, 1e5, 8}
+    ;
+    // when
+    // then
+    EXPECT_TRUE((triangle == triangle));
+    EXPECT_TRUE((square == square));
+    EXPECT_TRUE((pentagon != hexagon));
+    EXPECT_TRUE((heptagon != octagon));
+    EXPECT_TRUE((std::abs(triangle.Area() - 32.47595264191650)    < eps()));
+    EXPECT_TRUE((std::abs(square.Area()   - 2.000000000000000)    < eps()));
+    EXPECT_TRUE((std::abs(pentagon.Area() - 2641.823656370143)    < eps()));
+    EXPECT_TRUE((std::abs(hexagon.Area()  - 19.08053150379988)    < eps()));
+    EXPECT_TRUE((std::abs(heptagon.Area() - 6.84102547159526e-07) < eps()));
+    EXPECT_TRUE((std::abs(octagon.Area()  - 28284271247.4619)     < eps()));
 }
 
 TEST(TestGeometry, TestCircle) {

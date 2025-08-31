@@ -34,7 +34,7 @@ public:
                 return Rectangle{center, size, size * 0.8};
             }
             case 3: {
-                int sides = sides_dist(gen);
+                size_t sides = sides_dist(gen);
                 return RegularPolygon{center, size, sides};
             }
             case 4: {
@@ -59,7 +59,7 @@ private:
     std::mt19937 gen;
     std::uniform_real_distribution<double> coord_dist;
     std::uniform_real_distribution<double> size_dist;
-    std::uniform_int_distribution<int> sides_dist;
+    std::uniform_int_distribution<size_t> sides_dist;
     std::uniform_int_distribution<int> type_dist;
 };
 
