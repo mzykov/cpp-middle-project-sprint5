@@ -116,6 +116,7 @@ struct BoundingBox {
     constexpr inline double Top()    const { return right_top.y; }
     constexpr inline double Width()  const { return (right_top - left_bottom).x; }
     constexpr inline double Height() const { return (right_top - left_bottom).y; }
+    constexpr inline double Area()   const { return Width() * Height(); }
 
     constexpr inline Point2D LeftBottom()  const { return left_bottom; }
     constexpr inline Point2D RightTop()    const { return right_top; }
@@ -626,7 +627,7 @@ struct RegularPolygon {
     }
 
     constexpr inline double InnerRadius() const {
-        return radius * std::cos(std::numbers::pi * sides);
+        return radius * std::cos(std::numbers::pi / sides);
     }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
@@ -652,10 +653,11 @@ struct RegularPolygon {
 };
 
 struct Circle {
-    const Point2D center_p;
-    const double radius;
+    Point2D center_p;
+    double radius;
 
-    constexpr inline bool operator==(const Circle &other) const { return center_p == other.center_p && std::abs(radius - other.radius) < eps(); }
+    constexpr inline bool operator==(const Circle &other) const = default;
+    constexpr inline bool operator!=(const Circle &other) const = default;
 
     constexpr Circle(Point2D center, double radius) : center_p(center), radius(radius) {}
 
@@ -669,7 +671,7 @@ struct Circle {
     constexpr inline double Height() const { return center_p.y + radius; }
     constexpr inline Point2D Center() const { return center_p; }
 
-    inline std::vector<Point2D> Vertices(size_t N = 30) const {
+    std::vector<Point2D> Vertices(size_t N = 30) const {
         std::vector<Point2D> points;
         points.reserve(N);
 
@@ -683,7 +685,7 @@ struct Circle {
         return points;
     }
 
-    inline Lines2DDyn Lines(size_t N = 100) const {
+    Lines2DDyn Lines(size_t N = 100) const {
         auto vertices = Vertices(N);
         auto res = Lines2DDyn{};
         res.Reserve(vertices.size() + 1);
@@ -698,15 +700,12 @@ struct Circle {
         const auto get_random = [](const double l, const double r) -> double {
             std::random_device rd;
             std::default_random_engine re {rd()};
-            // Здесь есть асимметрия, потому что левая граница включена, а правая нет,
-            // но для простоты считаем это допустимым
             std::uniform_real_distribution<> dist(l, r);
             return dist(re);
         };
-        return {
-            get_random(center_p.x - radius, center_p.x + radius),
-            get_random(center_p.y - radius, center_p.y + radius)
-        };
+        const double r = get_random(0.0, radius);
+        const double phi = get_random(0.0, 2.0 * std::numbers::pi);
+        return center_p + (Point2D{std::cos(phi), std::sin(phi)} * r);
     }
 
     constexpr inline bool DoNotIntersectCircle(const Circle &other) const {
@@ -779,7 +778,8 @@ struct Circle {
     }
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
-        return (p.x - center_p.x) * (p.x - center_p.x) + (p.y - center_p.y) * (p.y - center_p.y) <= radius * radius;
+        const auto centered_p = p - center_p;
+        return centered_p.Dot(centered_p) <= radius * radius;
     }
 
     std::vector<Line> GetFaces() const {

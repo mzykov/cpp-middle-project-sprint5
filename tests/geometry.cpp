@@ -228,10 +228,44 @@ TEST(TestGeometry, TestRegularPolygon) {
     EXPECT_TRUE((std::abs(hexagon.Area()  - 19.08053150379988)    < eps()));
     EXPECT_TRUE((std::abs(heptagon.Area() - 6.84102547159526e-07) < eps()));
     EXPECT_TRUE((std::abs(octagon.Area()  - 28284271247.4619)     < eps()));
+
+    for (const auto &figure : {triangle, square, pentagon, hexagon, heptagon, octagon}) {
+        EXPECT_DOUBLE_EQ(figure.GetBoundingBox().Top(), figure.Height());
+        EXPECT_TRUE(figure.ContainsPoint(figure.Center()));
+
+        const auto get_random_point = [](const RegularPolygon &f) -> Point2D {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            std::uniform_real_distribution<> dist_r(0.0, (1.0 - eps()) * f.InnerRadius());
+            std::uniform_real_distribution<> dist_phi(0.0, 2.0 * std::numbers::pi);
+            const double r = dist_r(re);
+            const double phi = dist_phi(re);
+            return f.Center() + (Point2D{std::cos(phi), std::sin(phi)} * r);
+        };
+        EXPECT_TRUE(figure.ContainsPoint(get_random_point(figure)));
+
+        for (const auto &v : figure.Vertices()) {
+            EXPECT_TRUE(figure.ContainsPoint(v));
+        }
+    }
 }
 
 TEST(TestGeometry, TestCircle) {
-    
+    // given
+    constexpr Point2D origin{0.0, 0.0};
+    constexpr Circle
+        BigO{origin, 1.0},
+        ShiftedO{Point2D{-3.4555, 17.888}, 44.777777}
+    ;
+    // when
+    // then
+    EXPECT_TRUE((BigO == BigO));
+    EXPECT_DOUBLE_EQ(BigO.GetBoundingBox().Area(), 4.0);
+    EXPECT_DOUBLE_EQ(BigO.Height(), 1.0);
+
+    for (int i = 0; i < 10; ++i) {
+        EXPECT_TRUE(BigO.ContainsPoint(BigO.GetRandomPoint()));
+    }
 }
 
 TEST(TestGeometry, TestPolygon) {
