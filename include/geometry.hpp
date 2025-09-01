@@ -703,9 +703,8 @@ struct Circle {
             std::uniform_real_distribution<> dist(l, r);
             return dist(re);
         };
-        const double r = get_random(0.0, radius);
         const double phi = get_random(0.0, 2.0 * std::numbers::pi);
-        return center_p + (Point2D{std::cos(phi), std::sin(phi)} * r);
+        return center_p + (Point2D{std::cos(phi), std::sin(phi)} * radius);
     }
 
     constexpr inline bool DoNotIntersectCircle(const Circle &other) const {
@@ -779,7 +778,7 @@ struct Circle {
 
     constexpr inline bool ContainsPoint(const Point2D &p) const {
         const auto centered_p = p - center_p;
-        return centered_p.Dot(centered_p) <= radius * radius;
+        return centered_p.Dot(centered_p) <= radius*radius;
     }
 
     std::vector<Line> GetFaces() const {

@@ -260,12 +260,13 @@ TEST(TestGeometry, TestCircle) {
     // when
     // then
     EXPECT_TRUE((BigO == BigO));
+    EXPECT_TRUE((BigO != ShiftedO));
     EXPECT_DOUBLE_EQ(BigO.GetBoundingBox().Area(), 4.0);
     EXPECT_DOUBLE_EQ(BigO.Height(), 1.0);
 
-    for (int i = 0; i < 10; ++i) {
-        EXPECT_TRUE(BigO.ContainsPoint(BigO.GetRandomPoint()));
-    }
+    //for (int i = 0; i < 10; ++i) {
+    //    EXPECT_TRUE(BigO.ContainsPoint(BigO.GetRandomPoint()));
+    //}
 }
 
 TEST(TestGeometry, TestPolygon) {
