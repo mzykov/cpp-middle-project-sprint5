@@ -255,6 +255,9 @@ TEST(TestGeometry, TestCircle) {
     constexpr Point2D origin{0.0, 0.0};
     constexpr Circle
         BigO{origin, 1.0},
+        RightO{Point2D{2.0, 0.0}, 1.0},
+        TopO{Point2D{0.0, 2.0}, 1.0},
+        LeftO{Point2D{-1.0, 0.0}, 1.1},
         ShiftedO{Point2D{-3.4555, 17.888}, 44.777777}
     ;
     // when
@@ -263,10 +266,27 @@ TEST(TestGeometry, TestCircle) {
     EXPECT_TRUE((BigO != ShiftedO));
     EXPECT_DOUBLE_EQ(BigO.GetBoundingBox().Area(), 4.0);
     EXPECT_DOUBLE_EQ(BigO.Height(), 1.0);
+    EXPECT_FALSE(BigO.GetIntersectPoint(ShiftedO).has_value());
+    EXPECT_FALSE(ShiftedO.GetIntersectPoint(BigO).has_value());
+    EXPECT_TRUE((BigO.GetIntersectPoint(RightO).value() == Point2D{1.0, 0.0}));
+    EXPECT_TRUE((TopO.GetIntersectPoint(BigO).value() == Point2D{0.0, 1.0}));
+    EXPECT_TRUE(LeftO.GetIntersectPoint(BigO).has_value());
 
-    //for (int i = 0; i < 10; ++i) {
-    //    EXPECT_TRUE(BigO.ContainsPoint(BigO.GetRandomPoint()));
-    //}
+    for (const auto &circle : {BigO, RightO, TopO, LeftO, ShiftedO}) {
+        EXPECT_DOUBLE_EQ(circle.GetBoundingBox().Top(), circle.Height());
+        EXPECT_TRUE(circle.ContainsPoint(circle.Center()));
+
+        const auto get_random_point = [](const Circle &c) -> Point2D {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            std::uniform_real_distribution<> dist_r(0.0, (1.0 - eps()) * c.radius);
+            std::uniform_real_distribution<> dist_phi(0.0, 2.0 * std::numbers::pi);
+            const double r = dist_r(re);
+            const double phi = dist_phi(re);
+            return c.Center() + (Point2D{std::cos(phi), std::sin(phi)} * r);
+        };
+        EXPECT_TRUE(circle.ContainsPoint(get_random_point(circle)));
+    }
 }
 
 TEST(TestGeometry, TestPolygon) {

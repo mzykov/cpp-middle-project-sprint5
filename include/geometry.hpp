@@ -734,45 +734,46 @@ struct Circle {
                 Перенесём систему координат в центр текущей окружности.
                 И будем от неё плясать, координаты центра будут {0, 0}.
             */
-            auto new_other_center = other.center_p - center_p;
+            const auto new_other_center = other.center_p - center_p;
             const double a = new_other_center.Dot(new_other_center);
             const double c = (radius*radius + a - other.radius*other.radius) / 2.0;
             const double b = -2.0 * new_other_center.y * c;
             const double e = c*c - radius*radius*new_other_center.x*new_other_center.x;
+            double x, y;
 
             if (std::abs(new_other_center.x) < eps()) {
-                const double y = c / new_other_center.y;
+                y = c / new_other_center.y;
                 const double D = radius*radius - y*y;
+
                 if (std::abs(D) < eps()) {
                     // Окружности касаются друг друга
-                    const double x = 0.0;
-                    return {{ x + new_other_center.x, y + new_other_center.y }};
+                    x = 0.0;
                 }
-                else if (D > 0) {
+                else if (D > 0.0) {
                     // Пересекаются в двух точках. Берём одну из них.
-                    const double x = std::sqrt(D);
-                    return {{ x + new_other_center.x, y + new_other_center.y }};
+                    x = std::sqrt(D);
                 }
                 else {
                     throw std::logic_error("Circles do not touch each other!");
                 }
-            } else {
+            }
+            else {
                 const double D = b*b - 4.0*a*e;
                 if (std::abs(D) < eps()) {
                     // Окружности касаются друг друга
-                    const double y = -b / (2.0 * a);
-                    const double x = (c - y * new_other_center.y) / new_other_center.x;
-                    return {{ x + new_other_center.x, y + new_other_center.y }};
+                    y = -b / (2.0 * a);
+                    x = (c - y * new_other_center.y) / new_other_center.x;
                 }
-                else if (D > 0) {
-                    const double y = (-b + std::sqrt(D)) / (2.0 * a);
-                    const double x = (c - y * new_other_center.y) / new_other_center.x;
-                    return {{ x + new_other_center.x, y + new_other_center.y }};
+                else if (D > 0.0) {
+                    // Пересекаются в двух точках. Берём одну из них.
+                    y = (-b + std::sqrt(D)) / (2.0 * a);
+                    x = (c - y * new_other_center.y) / new_other_center.x;
                 }
                 else {
                     throw std::logic_error("Circles do not intersect each other!");
                 }
             }
+            return {center_p + Point2D{x, y}};
         }
     }
 
@@ -792,34 +793,19 @@ public:
     std::vector<Point2D> vertices;
 
     constexpr inline Point2D Center() const {
-        double center_x = 0, center_y = 0;
-        for (const auto &v : vertices) {
-            center_x += v.x;
-            center_y += v.y;
-        }
-        return Point2D{center_x, center_y} / vertices.size();
+        return std::ranges::fold_left(vertices, Point2D{0.0, 0.0}, std::plus<Point2D>()) / vertices.size();
     }
 
     constexpr inline bool operator==(const Polygon &other) const = default;
+    constexpr inline bool operator!=(const Polygon &other) const = default;
 
     constexpr inline double Height() const {
-        return (*std::max_element(vertices.begin(), vertices.end(),
-            [](const auto &lhd, const auto &rhd) {
-                return lhd.y < rhd.y;
-            })).y;
+        return (*std::ranges::max_element(vertices, {}, &Point2D::y)).y;
     }
 
     constexpr inline BoundingBox GetBoundingBox() const {
-        const auto [min_x, max_x] = std::minmax_element(vertices.begin(), vertices.end(),
-            [](const auto &lhd, const auto &rhd) {
-                return lhd.x < rhd.x;
-            }
-        );
-        const auto [min_y, max_y] = std::minmax_element(vertices.begin(), vertices.end(),
-            [](const auto &lhd, const auto &rhd) {
-                return lhd.y < rhd.y;
-            }
-        );
+        const auto [min_x, max_x] = std::ranges::minmax_element(vertices, {}, &Point2D::x);
+        const auto [min_y, max_y] = std::ranges::minmax_element(vertices, {}, &Point2D::y);
         return { {(*min_x).x, (*min_y).y}, {(*max_x).x, (*max_y).y} };
     }
 
@@ -836,7 +822,7 @@ public:
         return res;
     }
 
-    constexpr inline bool ContainsPoint(const Point2D &p) const {
+    constexpr bool ContainsPoint(const Point2D &p) const {
         // Алгоритм вероятностный. Простого ответа на вопрос принадлежит ли точка
         // многоугольнику нет, т.к. многоугольник может быть какой угодно "сложный".
         // Здесь используется метод трассировки луча. Если точка расположена внутри,
