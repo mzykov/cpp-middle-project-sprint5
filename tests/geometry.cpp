@@ -291,7 +291,7 @@ TEST(TestGeometry, TestCircle) {
 
 TEST(TestGeometry, TestPolygon) {
     // given
-    constexpr Point2D origin{0.0, 0.0};
+    constexpr Point2D origin{0.0, 0.0}, out_of_flag{3.222222, 4.17};
     constexpr RegularPolygon
         triangle{origin, 5.0, 3},
         square{origin, 1.0, 4},
@@ -300,13 +300,26 @@ TEST(TestGeometry, TestPolygon) {
         heptagon{origin, 0.0005, 7},
         octagon{Point2D{-5.0, -3.0}, 1e5, 8}
     ;
+    const Polygon looks_like_flag{
+        { {0.0, 0.0}, {11.1, 0.0}, {std::numbers::pi, 4.17}, {10.9, 8.2111}, {0.0, 8.2111} }
+    };
     // when
     // then
+    EXPECT_FALSE(looks_like_flag.ContainsPoint(out_of_flag));
+    EXPECT_FALSE(looks_like_flag.ContainsPoint(looks_like_flag.Center()));
+
+    for (const auto &v : looks_like_flag.Vertices()) {
+        EXPECT_TRUE(looks_like_flag.ContainsPoint(v));
+    }
     for (const auto &regular_polygon : {triangle, square, pentagon, hexagon, heptagon, octagon}) {
         const Polygon arbitrary_polygon{regular_polygon.Vertices()};
         EXPECT_TRUE((arbitrary_polygon.Center() == regular_polygon.Center()));
         EXPECT_TRUE((arbitrary_polygon.Height() == regular_polygon.Height()));
         EXPECT_TRUE((arbitrary_polygon.GetBoundingBox() == regular_polygon.GetBoundingBox()));
         EXPECT_TRUE(arbitrary_polygon.ContainsPoint(origin));
+
+        for (const auto &v : arbitrary_polygon.Vertices()) {
+            EXPECT_TRUE(arbitrary_polygon.ContainsPoint(v));
+        }
     }
 }

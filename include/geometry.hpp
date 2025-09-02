@@ -786,8 +786,7 @@ struct Circle {
     }
 };
 
-class Polygon {
-public:
+struct Polygon {
     std::vector<Point2D> vertices;
 
     constexpr inline Point2D Center() const {
@@ -809,7 +808,7 @@ public:
 
     inline std::vector<Point2D> Vertices() const { return vertices; }
 
-    inline Lines2DDyn Lines() const {
+    Lines2DDyn Lines() const {
         auto vertices = Vertices();
         auto res = Lines2DDyn{};
         res.Reserve(vertices.size() + 1);
@@ -821,92 +820,35 @@ public:
     }
 
     constexpr bool ContainsPoint(const Point2D &p) const {
-        // Алгоритм вероятностный. Простого ответа на вопрос принадлежит ли точка
-        // многоугольнику нет, т.к. многоугольник может быть какой угодно "сложный".
-        // Здесь используется метод трассировки луча. Если точка расположена внутри,
-        // то "с большой вероятностью" число пересечений луча из этой точки в каком-то
-        // произвольном направлении будет нечётным. Если снаружи, то число пересечений луча
-        // с гранями многоугольника "с большой вероятностью" будет чётным.
-        // Чтобы уменьшить вероятность неверного ответа, делаем N рандомных попыток и
-        // смотрим, каких результатов получилось больше: чётных или нечётных
-        constexpr size_t N = 3; // нечётное, чтобы можно было определить победителя
-        std::vector<int> res(N);
+        const auto v = Vertices();
+        std::vector<double> signs(v.size());
 
-        for (size_t i = 0; i < N; ++i) {
-            const int num_intersections = calculateIntersectionsWithRandomRay(p);
-            res[i] = num_intersections % 2 ? 1 : -1;
+        for (size_t i = 0; i < v.size(); ++i) {
+            signs[i] = (v[(i + 1) % v.size()] - v[i]).Cross(p - v[i]);
         }
 
-        return std::ranges::fold_left(res, 0, std::plus<int>()) < 0;
+        const auto are_positive  = [](const double d) -> bool { return d > 0.0; };
+        const auto are_negative  = [](const double d) -> bool { return d < 0.0; };
+        const auto close_to_zero = [](const double d) -> bool { return std::abs(d) < eps(); };
+
+        if (
+            std::ranges::all_of(signs, are_positive) ||
+            std::ranges::all_of(signs, are_negative) ||
+            std::ranges::any_of(signs, close_to_zero)
+        ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    inline std::vector<Line> GetFaces() const {
+    std::vector<Line> GetFaces() const {
         std::vector<Line> faces;
         const auto v = Vertices();
-        for (int i = 0; i < v.size(); ++i) {
+        for (size_t i = 0; i < v.size(); ++i) {
             faces.emplace_back(v[i], v[(i + 1) % v.size()]);
         }
         return faces;
-    }
-
-private:
-    constexpr size_t calculateIntersectionsWithRandomRay(const Point2D &p) const {
-        // Случайным образом выбираем одну из граней многоугольника и проводим луч
-        // из точки `p` через рандомную точку этой грани за границу BoundingBox этого многоугольника.
-        // Далее считаем количество пересечений этого луча (по факту это отрезок) с гранями
-        // многоугольника
-        const auto faces = GetFaces();
-        const auto get_random = [](const size_t sz) -> size_t {
-            std::random_device rd;
-            std::default_random_engine re {rd()};
-            std::uniform_int_distribution<int> dist(0, sz);
-            return dist(re);
-        };
-        // Эта точка нужна для формирования луча
-        const auto random_point = faces[get_random(faces.size() - 1)].GetRandomPoint();
-        const auto coeffs = Line{p, random_point}.LineCoeffs();
-        double boundary_x, boundary_y;
-
-        if (coeffs) {
-            const auto [k, b] = *coeffs;
-
-            if (p.x < random_point.x) {
-                boundary_x = GetBoundingBox().Right();
-            } else {
-                boundary_x = GetBoundingBox().Left();
-            }
-
-            boundary_y = k * boundary_x + b;
-        }
-        else {
-            // Получилась вертикальная прямая x = Const
-            boundary_x = p.x;
-
-            if (p.y > random_point.y) {
-                // Луч идёт вниз, значит в качестве
-                // крайней точки берём минимальную координату
-                // ограничивающего прямоугольника
-                boundary_y = GetBoundingBox().Bottom();
-            } else {
-                // Луч идёт вверх
-                boundary_y = GetBoundingBox().Top();
-            }
-        }
-
-        const auto ray = Line{p, Point2D{boundary_x, boundary_y}};
-        size_t res = 0;
-
-        const auto above_ray_start = [&ray](const Line &l) -> bool {
-            return l.Height() > ray.start.y;
-        };
-
-        for (const auto face : faces | std::views::filter(above_ray_start)) {
-            if (face.GetIntersectPoint(ray)) {
-                ++res;
-            }
-        }
-
-        return res;
     }
 };
 
