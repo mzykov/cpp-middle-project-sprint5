@@ -307,6 +307,6 @@ TEST(TestGeometry, TestPolygon) {
         EXPECT_TRUE((arbitrary_polygon.Center() == regular_polygon.Center()));
         EXPECT_TRUE((arbitrary_polygon.Height() == regular_polygon.Height()));
         EXPECT_TRUE((arbitrary_polygon.GetBoundingBox() == regular_polygon.GetBoundingBox()));
-        //EXPECT_TRUE(arbitrary_polygon.ContainsPoint(origin));
+        EXPECT_TRUE(arbitrary_polygon.ContainsPoint(origin));
     }
 }
