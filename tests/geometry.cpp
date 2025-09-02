@@ -290,5 +290,23 @@ TEST(TestGeometry, TestCircle) {
 }
 
 TEST(TestGeometry, TestPolygon) {
-    
+    // given
+    constexpr Point2D origin{0.0, 0.0};
+    constexpr RegularPolygon
+        triangle{origin, 5.0, 3},
+        square{origin, 1.0, 4},
+        pentagon{origin, 33.3333333333, 5},
+        hexagon{Point2D{0.1, -0.2}, 2.71, 6},
+        heptagon{origin, 0.0005, 7},
+        octagon{Point2D{-5.0, -3.0}, 1e5, 8}
+    ;
+    // when
+    // then
+    for (const auto &regular_polygon : {triangle, square, pentagon, hexagon, heptagon, octagon}) {
+        const Polygon arbitrary_polygon{regular_polygon.Vertices()};
+        EXPECT_TRUE((arbitrary_polygon.Center() == regular_polygon.Center()));
+        EXPECT_TRUE((arbitrary_polygon.Height() == regular_polygon.Height()));
+        EXPECT_TRUE((arbitrary_polygon.GetBoundingBox() == regular_polygon.GetBoundingBox()));
+        //EXPECT_TRUE(arbitrary_polygon.ContainsPoint(origin));
+    }
 }

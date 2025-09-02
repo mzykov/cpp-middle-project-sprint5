@@ -589,9 +589,7 @@ struct RegularPolygon {
         const auto vertices = Vertices();
         const auto [min_x, max_x] = std::ranges::minmax_element(vertices, {}, &Point2D::x);
         const auto [min_y, max_y] = std::ranges::minmax_element(vertices, {}, &Point2D::y);
-        return {
-            { (*min_x).x, (*min_y).y }, { (*max_x).x, (*max_y).y }
-        };
+        return { { (*min_x).x, (*min_y).y }, { (*max_x).x, (*max_y).y } };
     }
 
     constexpr inline Point2D Center() const { return center_p; }
@@ -852,13 +850,13 @@ public:
     }
 
 private:
-    constexpr inline size_t calculateIntersectionsWithRandomRay(const Point2D &p) const {
+    constexpr size_t calculateIntersectionsWithRandomRay(const Point2D &p) const {
         // Случайным образом выбираем одну из граней многоугольника и проводим луч
         // из точки `p` через рандомную точку этой грани за границу BoundingBox этого многоугольника.
         // Далее считаем количество пересечений этого луча (по факту это отрезок) с гранями
         // многоугольника
         const auto faces = GetFaces();
-        const auto get_random = [](const int sz) -> int {
+        const auto get_random = [](const size_t sz) -> size_t {
             std::random_device rd;
             std::default_random_engine re {rd()};
             std::uniform_int_distribution<int> dist(0, sz);
@@ -867,7 +865,6 @@ private:
         // Эта точка нужна для формирования луча
         const auto random_point = faces[get_random(faces.size() - 1)].GetRandomPoint();
         const auto coeffs = Line{p, random_point}.LineCoeffs();
-
         double boundary_x, boundary_y;
 
         if (coeffs) {
@@ -886,7 +883,8 @@ private:
             boundary_x = p.x;
 
             if (p.y > random_point.y) {
-                // Луч идёт вниз, значит в качестве крайней точки берём минимальную координату
+                // Луч идёт вниз, значит в качестве
+                // крайней точки берём минимальную координату
                 // ограничивающего прямоугольника
                 boundary_y = GetBoundingBox().Bottom();
             } else {
@@ -898,7 +896,11 @@ private:
         const auto ray = Line{p, Point2D{boundary_x, boundary_y}};
         size_t res = 0;
 
-        for (const auto face : faces) {
+        const auto above_ray_start = [&ray](const Line &l) -> bool {
+            return l.Height() > ray.start.y;
+        };
+
+        for (const auto face : faces | std::views::filter(above_ray_start)) {
             if (face.GetIntersectPoint(ray)) {
                 ++res;
             }
