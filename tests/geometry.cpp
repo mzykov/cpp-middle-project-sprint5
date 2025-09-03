@@ -1,9 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "geometry.hpp"
-#include <cassert>
-#include <cmath>
-#include <print>
 
 using namespace geometry;
 

@@ -775,6 +775,65 @@ struct Circle {
         }
     }
 
+    constexpr std::optional<Point2D> GetIntersectPoint(const Line &line) const {
+        const auto coeffs = line.LineCoeffs();
+        if (coeffs) {
+            const auto [k, d] = *coeffs;
+            const double a = k * k + 1.0;
+            const double b = 2.0 * (k * (d - center_p.y) - center_p.x);
+            const double c = center_p.x * center_p.x + (d - center_p.y) * (d - center_p.y) - radius * radius;
+            const double D = b * b - 4.0 * a * c;
+            if (std::abs(D) < eps()) {
+                // D == 0, прямая, на которой лежит отрезок касается окружности
+                const double x = -b / (2.0 * a); // a != 0
+                const double y = k * x + d;
+                const auto p = Point2D{x, y};
+                if (line.ContainsPoint(p)) {
+                    return { std::move(p) };
+                }
+            }
+            else if (D > 0.0) {
+                // D > 0, Линия на которой лежит отрезок дважды пересекает окружность
+                for (const double sign : {-1.0, +1.0}) {
+                    const double x = (-b + sign * std::sqrt(D)) / (2.0 * a);
+                    const double y = k * x + d;
+                    const auto p = Point2D{x, y};
+                    if (line.ContainsPoint(p)) {
+                        return { std::move(p) };
+                    }
+                }
+            }
+        }
+        else {
+            // Отрезок лежит на вертикальной линии
+            if (center_p.x - radius <= line.start.x && line.start.x <= center_p.x + radius) {
+                const double x = line.start.x;
+                const double D = radius * radius - (x - center_p.x) * (x - center_p.x);
+                if (std::abs(D) < eps()) {
+                    // D == 0, Значит вертикальная прямая касается окружности
+                    const auto p = Point2D{x, center_p.y};
+                    if (line.ContainsPoint(p)) {
+                        return { std::move(p) };
+                    }
+                }
+                else if (D > 0.0) {
+                    // Две точки пересечения
+                    const double y = std::sqrt(D);
+                    for (const double sign : {-1.0, +1.0}) {
+                        const auto p = Point2D{x, center_p.y + sign * y};
+                        if (line.ContainsPoint(p)) {
+                            return { std::move(p) };
+                        }
+                    }
+                }
+                else {
+                    throw std::logic_error("Vertical line do not intersect circle");
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
     constexpr inline bool ContainsPoint(const Point2D &p) const {
         const auto centered_p = p - center_p;
         return centered_p.Dot(centered_p) <= radius*radius;
