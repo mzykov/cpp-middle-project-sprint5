@@ -4,7 +4,7 @@
 
 using namespace geometry;
 
-TEST(TestGeometry, TestLineIntersectsCircleAtOnePoint) {
+TEST(TestIntersections, TestLineIntersectsCircleAtOnePoint) {
     // given
     constexpr Point2D
         origin{0.0, 0.0},
@@ -22,7 +22,7 @@ TEST(TestGeometry, TestLineIntersectsCircleAtOnePoint) {
     EXPECT_EQ(got.value().value(), x30degree); // check point
 }
 
-TEST(TestGeometry, TestLineIntersectsCircleAtTwoPoints) {
+TEST(TestIntersections, TestLineIntersectsCircleAtTwoPoints) {
     // given
     constexpr Point2D
         origin{0.0, 0.0},
@@ -40,7 +40,7 @@ TEST(TestGeometry, TestLineIntersectsCircleAtTwoPoints) {
     EXPECT_TRUE((got.value().value() == x30degree || got.value().value() == x30degree * (-1.0))); // check points
 }
 
-TEST(TestGeometry, TestCircleTouchesLines) {
+TEST(TestIntersections, TestCircleTouchesLines) {
     // given
     constexpr Point2D
         origin{0.0, 0.0},
@@ -70,7 +70,7 @@ TEST(TestGeometry, TestCircleTouchesLines) {
     EXPECT_FALSE(got_faraway.value().has_value());
 }
 
-TEST(TestGeometry, TestGetIntersectPointSpec) {
+TEST(TestIntersections, TestGetIntersectPointSpec) {
     // given
     constexpr Point2D origin{0.0, 0.0};
     constexpr Shape

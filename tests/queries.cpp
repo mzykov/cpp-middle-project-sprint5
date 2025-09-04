@@ -4,7 +4,7 @@
 
 using namespace geometry;
 
-TEST(TestGeometry, TestPointToLineDistance) {
+TEST(TestQueries, TestPointToLineDistance) {
     // given
     constexpr Point2D origin{0.0, 0.0};
     constexpr Shape
@@ -27,7 +27,7 @@ TEST(TestGeometry, TestPointToLineDistance) {
     EXPECT_DOUBLE_EQ(queries::DistanceToPoint(y_const2, origin), 2.0);
 }
 
-TEST(TestGeometry, TestPointToTriangleDistance) {
+TEST(TestQueries, TestPointToTriangleDistance) {
     // given
     constexpr Point2D origin{0.0, 0.0};
     constexpr Shape
@@ -50,7 +50,7 @@ TEST(TestGeometry, TestPointToTriangleDistance) {
     EXPECT_DOUBLE_EQ(queries::DistanceToPoint(tri3, origin), 1.0);
 }
 
-TEST(TestGeometry, TestPointToRectangleDistance) {
+TEST(TestQueries, TestPointToRectangleDistance) {
     // given
     constexpr Point2D origin{0.0, 0.0};
     constexpr Shape
@@ -74,7 +74,7 @@ TEST(TestGeometry, TestPointToRectangleDistance) {
     EXPECT_TRUE((std::abs(queries::DistanceToPoint(rect0, Point2D{3.2, -22.333}) - 0.57) < eps()));
 }
 
-TEST(TestGeometry, TestPointToRegularPolygonDistance) {
+TEST(TestQueries, TestPointToRegularPolygonDistance) {
     // given
     constexpr Point2D origin{0.0, 0.0};
     constexpr Shape
@@ -139,7 +139,7 @@ TEST(TestGeometry, TestPointToRegularPolygonDistance) {
     }
 }
 
-TEST(TestGeometry, TestPointToCircleDistance) {
+TEST(TestQueries, TestPointToCircleDistance) {
     // given
     constexpr Point2D origin{0.0, 0.0}, egypt{3.0, 4.0};
     constexpr Shape
@@ -155,15 +155,15 @@ TEST(TestGeometry, TestPointToCircleDistance) {
     EXPECT_TRUE((std::abs(queries::DistanceToPoint(circle1, egypt) - 6.68331969448077) < eps()));
 }
 
-TEST(TestGeometry, TestPointToPolygonDistance) {
-    
+TEST(TestQueries, TestPointToPolygonDistance) {
+
 }
 
-TEST(TestGeometry, TestDistanceBetweenLines) {
-    
+TEST(TestQueries, TestDistanceBetweenLines) {
+
 }
 
-TEST(TestGeometry, TestDistanceBetweenCircles) {
+TEST(TestQueries, TestDistanceBetweenCircles) {
     // given
     constexpr Shape
         circle0 = Circle{{0.0, 0.0}, 1.0},
