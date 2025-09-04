@@ -145,7 +145,7 @@ struct Line {
         return end.y < other.end.y;
     }
 
-    constexpr inline bool IsVertical() const { return start.x == end.x; }
+    constexpr inline bool IsVertical() const { return std::abs(start.x - end.x) < eps(); }
     constexpr inline double Length() const { return start.DistanceTo(end); }
     constexpr inline double Height() const { return std::max(start.y, end.y); }
     constexpr inline BoundingBox GetBoundingBox() const { return BoundingBox(start, end); }
@@ -452,22 +452,22 @@ struct Triangle {
     constexpr inline double Height() const { return std::max({ a.y, b.y, c.y }); }
     constexpr inline Lines2D<4> Lines() const { return {{a.x, b.x, c.x, a.x}, {a.y, b.y, c.y, a.y}}; }
 
-    constexpr inline bool ContainsPoint(const Point2D &p) const {
-        const auto c1 = (b - a).Cross(p - a);
-        const auto c2 = (c - b).Cross(p - b);
-        const auto c3 = (a - c).Cross(p - c);
-        // Если знаки одинаковые, то точка внутри треугольника
-        if (c1 < 0.0 && c2 < 0.0 && c3 < 0.0) {
-            return true;
+    constexpr bool ContainsPoint(const Point2D &p) const {
+        const auto v = Vertices();
+        std::vector<double> signs(v.size());
+        for (size_t i = 0; i < v.size(); ++i) {
+            signs[i] = (v[(i + 1) % v.size()] - v[i]).Cross(p - v[i]);
         }
-        else if (c1 > 0.0 && c2 > 0.0 && c3 > 0.0) {
+        const auto are_positive  = [](const double d) -> bool { return d > 0.0; };
+        const auto are_negative  = [](const double d) -> bool { return d < 0.0; };
+        const auto close_to_zero = [](const double d) -> bool { return std::abs(d) < eps(); };
+        if (
+            std::ranges::all_of(signs, are_positive) ||
+            std::ranges::all_of(signs, are_negative) ||
+            std::ranges::any_of(signs, close_to_zero)
+        ) {
             return true;
-        }
-        else if (std::abs(c1) < eps() || std::abs(c2) < eps() || std::abs(c3) < eps()) {
-            // Если одно из произведений равно нулю, то точка лежит на границе треугольника
-            return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
@@ -628,16 +628,24 @@ struct RegularPolygon {
         return radius * std::cos(std::numbers::pi / sides);
     }
 
-    constexpr inline bool ContainsPoint(const Point2D &p) const {
-        // Разбиваем на треугольники и проверяем каждый из них
+    constexpr bool ContainsPoint(const Point2D &p) const {
         const auto v = Vertices();
-        for (int i = 0; i < v.size(); ++i) {
-            const auto t = Triangle{ center_p, v[i], v[(i + 1) % v.size()] };
-            if (t.ContainsPoint(p)) {
-                return true;
-            }
+        std::vector<double> signs(v.size());
+        for (size_t i = 0; i < v.size(); ++i) {
+            signs[i] = (v[(i + 1) % v.size()] - v[i]).Cross(p - v[i]);
         }
-        return false;
+        const auto are_positive  = [](const double d) -> bool { return d > 0.0; };
+        const auto are_negative  = [](const double d) -> bool { return d < 0.0; };
+        const auto close_to_zero = [](const double d) -> bool { return std::abs(d) < eps(); };
+        if (
+            std::ranges::all_of(signs, are_positive) ||
+            std::ranges::all_of(signs, are_negative) ||
+            std::ranges::any_of(signs, close_to_zero)
+        ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     inline std::vector<Line> GetFaces() const {
@@ -881,15 +889,12 @@ struct Polygon {
     constexpr bool ContainsPoint(const Point2D &p) const {
         const auto v = Vertices();
         std::vector<double> signs(v.size());
-
         for (size_t i = 0; i < v.size(); ++i) {
             signs[i] = (v[(i + 1) % v.size()] - v[i]).Cross(p - v[i]);
         }
-
         const auto are_positive  = [](const double d) -> bool { return d > 0.0; };
         const auto are_negative  = [](const double d) -> bool { return d < 0.0; };
         const auto close_to_zero = [](const double d) -> bool { return std::abs(d) < eps(); };
-
         if (
             std::ranges::all_of(signs, are_positive) ||
             std::ranges::all_of(signs, are_negative) ||

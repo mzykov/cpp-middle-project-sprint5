@@ -51,15 +51,108 @@ TEST(TestGeometry, TestPointToTriangleDistance) {
 }
 
 TEST(TestGeometry, TestPointToRectangleDistance) {
-    
+    // given
+    constexpr Point2D origin{0.0, 0.0};
+    constexpr Shape
+        square = Rectangle{{-1.0, -1.0}, 2.0, 2.0},
+        rect0  = Rectangle{{3.77, -44.8888}, 99.1, 42.42}
+    ;
+    // when
+    // then
+    for (const auto &shape : {square, rect0}) {
+        const auto vertices = shape.visit([](auto &&rect){ return rect.Vertices(); });
+        for (const auto &v : vertices) {
+            EXPECT_DOUBLE_EQ(queries::DistanceToPoint(shape, v), 0.0);
+        }
+    }
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(square, origin), 0.0);
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(square, Point2D{1.1, 0.0}) - 0.1)     < eps()));
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(square, Point2D{0.0, 1.1}) - 0.1)     < eps()));
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(square, Point2D{1.1, 1.0}) - 0.1)     < eps()));
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(square, Point2D{1.0, 1.1}) - 0.1)     < eps()));
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(rect0, origin) - 4.50642579435188)    < eps()));
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(rect0, Point2D{3.2, -22.333}) - 0.57) < eps()));
 }
 
 TEST(TestGeometry, TestPointToRegularPolygonDistance) {
-    
+    // given
+    constexpr Point2D origin{0.0, 0.0};
+    constexpr Shape
+        triangle = RegularPolygon{origin, 5.0, 3},
+        square   = RegularPolygon{origin, 1.0, 4},
+        pentagon = RegularPolygon{origin, 33.3333333333, 5},
+        hexagon  = RegularPolygon{Point2D{1.0, 3.0}, 2.71, 6},
+        heptagon = RegularPolygon{origin, 0.0005, 7},
+        octagon  = RegularPolygon{Point2D{-5.0, -3.0}, 1e5, 8}
+    ;
+    const auto get_random_point_out_of_shape_on_line = [](const Line &l, const Point2D &c) -> Point2D {
+        const auto get_random_coord = [](const double l, const double r) -> double {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            std::uniform_real_distribution<> dist(l, r);
+            return dist(re);
+        };
+        if (l.IsVertical()) {
+            double lo, hi;
+            if (l.end == c) {
+                lo = l.start.y - 2.0;
+                hi = l.start.y - 1.0;
+            } else {
+                lo = l.end.y + 1.0;
+                hi = l.end.y + 2.0;
+            }
+            return { c.x, get_random_coord(lo, hi) };
+        }
+        else {
+            double lo, hi;
+            if (l.end == c) {
+                lo = l.start.x - 2.0;
+                hi = l.start.x - 1.0;
+            } else {
+                lo = l.end.x + 1.0;
+                hi = l.end.x + 2.0;
+            }
+            const auto [k, b] = *l.LineCoeffs();
+            const double x = get_random_coord(lo, hi);
+            return { x,  k*x + b };
+        }
+    };
+    // when
+    // then
+    for (const auto &shape : {triangle, square, pentagon, hexagon, heptagon, octagon}) {
+        const auto center   = shape.visit([](auto &&poly){ return poly.Center(); });
+        const auto vertices = shape.visit([](auto &&poly){ return poly.Vertices(); });
+        const auto faces    = shape.visit([](auto &&poly){ return poly.GetFaces(); });
+
+        EXPECT_DOUBLE_EQ(queries::DistanceToPoint(shape, center), 0.0);
+
+        for (const auto &v : vertices) {
+            EXPECT_DOUBLE_EQ(queries::DistanceToPoint(shape, v), 0.0);
+            const auto p = get_random_point_out_of_shape_on_line(Line{center, v}, center);
+            EXPECT_TRUE((std::abs(queries::DistanceToPoint(shape, p) - Line{p, v}.Length()) < eps()));
+        }
+
+        for (const auto &face : faces) {
+            const auto p = get_random_point_out_of_shape_on_line(Line{center, face.Center()}, center);
+            EXPECT_TRUE((std::abs(queries::DistanceToPoint(shape, p) - queries::DistanceToPoint(Shape{face}, p)) < eps()));
+        }
+    }
 }
 
 TEST(TestGeometry, TestPointToCircleDistance) {
-    
+    // given
+    constexpr Point2D origin{0.0, 0.0}, egypt{3.0, 4.0};
+    constexpr Shape
+        circle0 = Circle{origin, 1.0},
+        circle1 = Circle{{-7.1, 2.7}, 3.5}
+    ;
+    // when
+    // then
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(circle0, egypt), 4.0);
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(circle0, Point2D{0.1, 0.1}), 0.0);
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(circle0, Point2D{0.0, 1.0}), 0.0);
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(circle0, Point2D{1.0, 0.0}), 0.0);
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(circle1, egypt) - 6.68331969448077) < eps()));
 }
 
 TEST(TestGeometry, TestPointToPolygonDistance) {
