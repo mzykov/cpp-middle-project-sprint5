@@ -160,7 +160,96 @@ TEST(TestQueries, TestPointToPolygonDistance) {
 }
 
 TEST(TestQueries, TestDistanceBetweenLines) {
+    // given
+    constexpr Shape
+        line0    = Line{{0.0, std::sqrt(2.0)}, {std::sqrt(2.0), 0.0}},
+        line1    = Line{{0.0, 0.0}, {-7.0, -5.5}},
+        line45_0 = Line{{-3.0, -3.0}, {-1.0, -1.0}},
+        line45_1 = Line{{1.0, 1.0}, {5.0, 5.0}},
+        line45_2 = Line{{-1.0, -1.0}, {7.0, 7.0}},
+        line45_3 = Line{{2.0, 1.0}, {6.0, 5.0}},
+        line45_4 = Line{{20.0, 1.0}, {24.0, 5.0}},
+        x_const0 = Line{{1.0, 5.0}, {1.0, 8.0}},
+        x_const1 = Line{{-1.0, 4.0}, {-1.0, 6.0}},
+        x_const2 = Line{{5.0, 11.0}, {5.0, 17.0}},
+        x_const3 = Line{{7.0, 17.0}, {7.0, 37.0}},
+        y_const0 = Line{{-1.0, -1.0}, {1.0, -1.0}},
+        y_const1 = Line{{0.0, 1.0}, {1.0, 1.0}},
+        y_const2 = Line{{4.0, 3.0}, {9.0, 3.0}},
+        y_const3 = Line{{9.0, 8.0}, {10.0, 8.0}}
+    ;
 
+    // when
+    const auto got00 = queries::DistanceBetweenShapes(line0, line0);
+    // then
+    EXPECT_TRUE(got00.has_value());
+    EXPECT_DOUBLE_EQ(got00.value(), 0.0);
+
+    // when
+    const auto got01 = queries::DistanceBetweenShapes(line0, line1);
+    // then
+    EXPECT_TRUE(got01.has_value());
+    EXPECT_DOUBLE_EQ(got01.value(), 1.0);
+
+    // when
+    const auto got45_01 = queries::DistanceBetweenShapes(line45_0, line45_1);
+    // then
+    EXPECT_TRUE(got45_01.has_value());
+    EXPECT_DOUBLE_EQ(got45_01.value(), 2.0*std::sqrt(2.0));
+
+    // when
+    const auto got45_02 = queries::DistanceBetweenShapes(line45_0, line45_2);
+    // then
+    EXPECT_TRUE(got45_02.has_value());
+    EXPECT_DOUBLE_EQ(got45_02.value(), 0.0);
+
+    // when
+    const auto got45_13 = queries::DistanceBetweenShapes(line45_1, line45_3);
+    // then
+    EXPECT_TRUE(got45_13.has_value());
+    EXPECT_DOUBLE_EQ(got45_13.value(), 1.0/std::sqrt(2.0));
+
+    // when
+    const auto got45_14 = queries::DistanceBetweenShapes(line45_1, line45_4);
+    // then
+    EXPECT_TRUE(got45_14.has_value());
+    EXPECT_DOUBLE_EQ(got45_14.value(), std::sqrt(15.0*15.0 + 4.0*4.0));
+
+    // when
+    const auto got_xconst_01 = queries::DistanceBetweenShapes(x_const0, x_const1);
+    // then
+    EXPECT_TRUE(got_xconst_01.has_value());
+    EXPECT_DOUBLE_EQ(got_xconst_01.value(), 2.0);
+
+    // when
+    const auto got_xconst_02 = queries::DistanceBetweenShapes(x_const0, x_const2);
+    // then
+    EXPECT_TRUE(got_xconst_02.has_value());
+    EXPECT_DOUBLE_EQ(got_xconst_02.value(), 5.0);
+
+    // when
+    const auto got_xconst_23 = queries::DistanceBetweenShapes(x_const2, x_const3);
+    // then
+    EXPECT_TRUE(got_xconst_23.has_value());
+    EXPECT_DOUBLE_EQ(got_xconst_23.value(), 2.0);
+
+    // when
+    const auto got_yconst_01 = queries::DistanceBetweenShapes(y_const0, y_const1);
+    // then
+    EXPECT_TRUE(got_yconst_01.has_value());
+    EXPECT_DOUBLE_EQ(got_yconst_01.value(), 2.0);
+
+    // when
+    const auto got_yconst_02 = queries::DistanceBetweenShapes(y_const0, y_const2);
+    // then
+    EXPECT_TRUE(got_yconst_02.has_value());
+    EXPECT_DOUBLE_EQ(got_yconst_02.value(), 5.0);
+
+    // when
+    const auto got_yconst_23 = queries::DistanceBetweenShapes(y_const2, y_const3);
+    // then
+    EXPECT_TRUE(got_yconst_23.has_value());
+    EXPECT_DOUBLE_EQ(got_yconst_23.value(), 5.0);
 }
 
 TEST(TestQueries, TestDistanceBetweenCircles) {

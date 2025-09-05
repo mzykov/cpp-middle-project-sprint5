@@ -84,7 +84,7 @@ inline bool BoundingBoxesOverlaps(const Shape &shape1, const Shape &shape2) {
 
 inline GeometryResult<double> DistanceBetweenShapes(const Shape &shape1, const Shape &shape2) {
     const auto visiter = ShapeToShapeDistanceVisitor {
-        [](const Line &line1, const Line &line2) -> GeometryResult<double> {
+        [&](const Line &line1, const Line &line2) -> GeometryResult<double> {
             if (line1.SharesSameLine(line2) && line1.Overlaps(line2)) {
                 return 0.0;
             }
@@ -122,10 +122,10 @@ inline GeometryResult<double> DistanceBetweenShapes(const Shape &shape1, const S
                 return 0.0;
             }
             else {
-                const auto ss = line1.start.DistanceTo(line2.start);
-                const auto se = line1.start.DistanceTo(line2.end);
-                const auto es = line1.end.DistanceTo(line2.start);
-                const auto ee = line1.end.DistanceTo(line2.end);
+                const auto ss = DistanceToPoint(shape1, line2.start);
+                const auto se = DistanceToPoint(shape1, line2.end);
+                const auto es = DistanceToPoint(shape2, line1.start);
+                const auto ee = DistanceToPoint(shape2, line1.end);
                 return std::min({ ss, se, es, ee });
             }
         },
