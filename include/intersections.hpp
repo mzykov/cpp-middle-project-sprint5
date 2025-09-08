@@ -1,24 +1,36 @@
 #pragma once
+
 #include "geometry.hpp"
-#include <cmath>
-#include <optional>
 
 namespace geometry::intersections {
 
-/*
- * Класс для поиска пересечений между двумя фигурами
- *
- * Требуется организовать возможность нахождения пересечений только для следующих комбинаций фигур:
- *    - Line   & Line
- *    - Circle & Circle
- *
- * Для всех остальных требуется вернуть std::nullopt
- */
-class IntersectionVisitor {
-public:
-    /* ваш код здесь */
+template <class... Ts>
+struct IntersectionVisitor : Ts... {
+    using Ts::operator()...;
 };
 
-inline std::optional<Point2D> GetIntersectPoint(const Shape &shape1, const Shape &shape2) { return std::nullopt; }
+template <class... Ts>
+IntersectionVisitor(Ts...) -> IntersectionVisitor<Ts...>;
+
+inline GeometryResult<std::optional<Point2D>> GetIntersectPoint(const Shape &shape1, const Shape &shape2) {
+    const auto visiter = IntersectionVisitor {
+        [](const Line &line1, const Line &line2) -> GeometryResult<std::optional<Point2D>> {
+            return line1.GetIntersectPoint(line2);
+        },
+        [](const Circle &circle1, const Circle &circle2) -> GeometryResult<std::optional<Point2D>> {
+            return circle1.GetIntersectPoint(circle2);
+        },
+        [](const Line &line, const Circle &circle) -> GeometryResult<std::optional<Point2D>> {
+            return circle.GetIntersectPoint(line);
+        },
+        [](const Circle &circle, const Line &line) -> GeometryResult<std::optional<Point2D>> {
+            return circle.GetIntersectPoint(line);
+        },
+        [](const auto &shape1, const auto &shape2) -> GeometryResult<std::optional<Point2D>> {
+            return std::unexpected{GeometryError::Unsupported};
+        }
+    };
+    return std::visit(visiter, shape1, shape2);
+}
 
 }  // namespace geometry::intersections

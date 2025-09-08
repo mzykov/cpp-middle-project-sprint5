@@ -1,4 +1,5 @@
 #pragma once
+
 #include "geometry.hpp"
 #include <algorithm>
 #include <ranges>
@@ -24,6 +25,6 @@ private:
     std::vector<Point2D> s;
 };
 
-GeometryResult<std::vector<Point2D>> GrahamScan(ReplaceMe points);
+GeometryResult<std::vector<Point2D>> GrahamScan(std::vector<Point2D> &points);
 
 }  // namespace geometry::convex_hull

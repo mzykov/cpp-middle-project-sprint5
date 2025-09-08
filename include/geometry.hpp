@@ -1,22 +1,24 @@
 #pragma once
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <expected>
 #include <format>
 #include <numbers>
+#include <numeric>
 #include <optional>
 #include <print>
+#include <random>
 #include <ranges>
+#include <span>
 #include <variant>
 #include <vector>
 
 namespace geometry {
 
-/*
- * Добавьте к методам класса Point2D и Lines2DDyn все необходимые аттрибуты и спецификаторы
- * Важно: Возвращаемый тип и принимаемые аргументы менять не нужно
- */
+constexpr inline double eps() { return 1e-10; }
+
 struct Point2D {
     double x, y;
 
@@ -24,22 +26,24 @@ struct Point2D {
     constexpr Point2D(double x, double y) : x(x), y(y) {}
 
     // Comparison
-    bool operator<(const Point2D &other) { return x < other.x && y < other.y; }
-    bool operator==(const Point2D &other) { return x == other.x && y == other.y; }
+    constexpr inline bool operator==(const Point2D &other) const { return std::abs(x - other.x) < eps() && std::abs(y - other.y) < eps(); }
+    constexpr inline bool operator!=(const Point2D &other) const { return !(*this == other); }
+    constexpr inline bool operator<(const Point2D &other) const { return x < other.x && y < other.y; }
+    constexpr inline bool operator<=(const Point2D &other) const { return x <= other.x && y <= other.y; }
 
     // Binary math operators
-    Point2D operator+(const Point2D &other) { return {x + other.x, y + other.y}; }
-    Point2D operator-(const Point2D &other) { return {x - other.x, y - other.y}; }
-    Point2D operator*(double value) { return {x * value, y * value}; }
-    Point2D operator/(double value) { return {x / value, y / value}; }
+    constexpr inline Point2D operator+(const Point2D &other) const { return {x + other.x, y + other.y}; }
+    constexpr inline Point2D operator-(const Point2D &other) const { return {x - other.x, y - other.y}; }
+    constexpr inline Point2D operator*(double value) const { return {x * value, y * value}; }
+    constexpr inline Point2D operator/(double value) const { return {x / value, y / value}; }
 
     // Binary geometry operations
-    double Dot(const Point2D &other) { return x * other.x + y * other.y; }
-    double Cross(const Point2D &other) { return x * other.y - y * other.x; }
-    double Length() { return std::sqrt(x * x + y * y); }
-    double DistanceTo(const Point2D &other) { return (*this - other).Length(); }
+    constexpr inline double Dot(const Point2D &other) const { return x * other.x + y * other.y; }
+    constexpr inline double Cross(const Point2D &other) const { return x * other.y - y * other.x; }
+    constexpr inline double Length() const { return std::sqrt(x * x + y * y); }
+    constexpr inline double DistanceTo(const Point2D &other) const { return (*this - other).Length(); }
 
-    Point2D Normalize() {
+    constexpr inline Point2D Normalize() const {
         const double len = Length();
         return len > 0 ? Point2D{x / len, y / len} : Point2D{0, 0};
     }
@@ -47,8 +51,8 @@ struct Point2D {
 
 template <size_t N>
 struct Lines2D {
-    std::array<double, N> x;
-    std::array<double, N> y;
+    const std::array<double, N> x;
+    const std::array<double, N> y;
 };
 
 struct Lines2DDyn {
@@ -67,126 +71,854 @@ struct Lines2DDyn {
         x.push_back(px);
         y.push_back(py);
     }
-    Point2D Front() { return {x.front(), y.front()}; }
+    constexpr inline Point2D Front() const { return {x.front(), y.front()}; }
 };
 
 struct BoundingBox {
-    double min_x, min_y, max_x, max_y;
+    Point2D left_bottom, right_top;
 
-    /* ваш код здесь */
+    constexpr BoundingBox() = default;
+    constexpr BoundingBox(const Point2D &lb, const Point2D &rt) :
+        left_bottom(lb < rt ? lb : rt),
+        right_top(lb < rt ? rt : lb) {
+            if (left_bottom.x == right_top.x || left_bottom.y == right_top.y) {
+                throw std::invalid_argument("Degenerated bounding box\n");
+            }
+        }
+
+    constexpr inline bool operator==(const BoundingBox &other) const = default;
+    constexpr inline bool operator!=(const BoundingBox &other) const = default;
+
+    constexpr inline bool Overlaps(const BoundingBox &other) const {
+        if (Left() >= other.Right() || other.Left() >= Right()) {
+            return false;
+        } else if (Top() <= other.Bottom() || Bottom() >= other.Top()) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    constexpr inline bool Contains(const BoundingBox &other) const {
+        return Left()        <= other.Left()
+            && other.Right() <= Right()
+            && Bottom()      <= other.Bottom()
+            && other.Top()   <= Top();
+    }
+
+    constexpr inline bool ContainsPoint(const Point2D &p) const {
+        return left_bottom <= p && p <= right_top;
+    }
+
+    constexpr inline double Left()   const { return left_bottom.x; }
+    constexpr inline double Right()  const { return right_top.x; }
+    constexpr inline double Bottom() const { return left_bottom.y; }
+    constexpr inline double Top()    const { return right_top.y; }
+    constexpr inline double Width()  const { return (right_top - left_bottom).x; }
+    constexpr inline double Height() const { return (right_top - left_bottom).y; }
+    constexpr inline double Area()   const { return Width() * Height(); }
+
+    constexpr inline Point2D LeftBottom()  const { return left_bottom; }
+    constexpr inline Point2D RightTop()    const { return right_top; }
+    constexpr inline Point2D LeftTop()     const { return Point2D{left_bottom.x, right_top.y}; }
+    constexpr inline Point2D RightBottom() const { return Point2D{right_top.x, left_bottom.y}; }
+    constexpr inline Point2D Center()      const { return left_bottom + ((right_top - left_bottom) / 2.0); }
 };
 
 struct Line {
     Point2D start, end;
 
-    /* ваш код здесь */
+    constexpr Line(const Point2D &s, const Point2D &e) :
+        start(s.x < e.x ? s : s.x > e.x ? e : s.y <= e.y ? s : e),
+        end(s.x < e.x ? e : s.x > e.x ? s : s.y <= e.y ? e : s) {}
 
-    Point2D Center() { return {}; }
-    std::array<Point2D, 2> Vertices() { return {Point2D{start.x, start.y}, {end.x, end.y}}; }
-    Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
+    constexpr inline bool operator==(const Line &other) const = default;
+    constexpr inline bool operator!=(const Line &other) const = default;
+
+    constexpr inline bool operator<(const Line &other) const {
+        if (std::abs(start.x - other.start.x) > eps())
+            return start.x < other.start.x;
+        if (std::abs(start.y - other.start.y) > eps())
+            return start.y < other.start.y;
+        if (std::abs(end.x - other.end.x) > eps())
+            return end.x < other.end.x;
+        return end.y < other.end.y;
+    }
+
+    constexpr inline bool IsVertical() const { return std::abs(start.x - end.x) < eps(); }
+    constexpr inline double Length() const { return start.DistanceTo(end); }
+    constexpr inline double Height() const { return std::max(start.y, end.y); }
+    constexpr inline BoundingBox GetBoundingBox() const { return BoundingBox(start, end); }
+    constexpr inline Point2D Center() const { return start + ((end - start) / 2.0); }
+    constexpr inline Lines2D<2> Lines() const { return {{start.x, end.x}, {start.y, end.y}}; }
+    constexpr inline Point2D Direction() const { return (end - start).Normalize(); }
+
+    inline std::vector<Point2D> Vertices() const { return {start, end}; }
+
+    // Коэффициенты прямой, которая содержит этот отрезок находим из уравнения:
+    // y = k * x + b
+    constexpr inline std::optional<std::pair<double, double>> LineCoeffs() const {
+        if (std::abs(start.x - end.x) < eps()) {
+            // Прямая типа x = Const
+            return std::nullopt;
+        } else {
+            const double k = (start.y - end.y) / (start.x - end.x);
+            const double b = start.y - k * start.x;
+            return {{k, b}};
+        }
+    }
+
+    // Возвращаем истину только если базовые прямые отрезков действительно параллельны.
+    // Если два отрезка расположены на одной прямой, то возвращаем ложь
+    constexpr inline bool IsParallelTo(const Line &other) const {
+        const auto data = LineCoeffs();
+        const auto other_data = other.LineCoeffs();
+
+        if (data && other_data) {
+            const auto [k, b] = *data;
+            const auto [k_other, b_other] = *other_data;
+
+            if (std::abs(k - k_other) < eps() && std::abs(b - b_other) >= eps()) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        else if (!data && !other_data && std::abs(start.x - other.start.x) >= eps()) {
+            // Две прямые параллельны: x = C1, x = C2, C1 != C2
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    constexpr inline bool SharesSameLine(const Line &other) const {
+        const auto data = LineCoeffs();
+        const auto other_data = other.LineCoeffs();
+
+        if (data && other_data) {
+            const auto [k, b] = *data;
+            const auto [k_other, b_other] = *other_data;
+
+            if (std::abs(k - k_other) < eps() && std::abs(b - b_other) < eps()) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        else if (!data && !other_data && std::abs(start.x - other.start.x) < eps()) {
+            // Две прямые тождественны: x = C1, x = C2, C1 == C2
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    constexpr inline bool ContainsPoint(const Point2D &p) const {
+        auto len = start.DistanceTo(p) + end.DistanceTo(p);
+        if (std::abs(len - Length()) < eps()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    constexpr std::optional<Point2D> GetIntersectPoint(const Line &other) const {
+        if (*this == other) {
+            return { start + ((end - start) / 2.0) };
+        }
+        else if (IsParallelTo(other)) {
+            return std::nullopt;
+        }
+        else if (SharesSameLine(other)) {
+            std::vector<Point2D> points {start, end, other.start, other.end};
+
+            if (IsVertical()) {
+                if (end.y < other.start.y || other.end.y < start.y) {
+                    return std::nullopt;
+                }
+                std::ranges::sort(points, {}, &Point2D::y);
+            }
+            else {
+                if (end.x < other.start.x || other.end.x < start.x) {
+                    return std::nullopt;
+                }
+                std::ranges::sort(points, {}, &Point2D::x);
+            }
+
+            return { Line{points[1], points[2]}.Center() };
+        }
+        else {
+            const auto data = LineCoeffs();
+            const auto other_data = other.LineCoeffs();
+            Point2D cross_point;
+
+            if (data && other_data) {
+                const auto [k, b] = *data;
+                const auto [k_other, b_other] = *other_data;
+
+                // Две прямые в общем положении (не параллельные!)
+                const double x = (b_other - b) / (k - k_other);
+                const double y = k * x + b;
+                cross_point = Point2D{x, y};
+            }
+            else if (data && !other_data) {
+                const auto [k, b] = *data;
+                // Другая прямая представляет собой вертикальную линию x = С1,
+                // Поэтому точка пересечения есть {C1, k * C1 + b}
+                cross_point = Point2D{other.start.x, k * other.start.x + b};
+            }
+            else if (!data && other_data) {
+                const auto [k_other, b_other] = *other_data;
+                // Первая прямая представляет собой вертикальную линию x = С1,
+                // Поэтому точка пересечения есть {C1, k_other * C1 + b_other}
+                cross_point = Point2D{start.x, k_other * start.x + b_other};
+            }
+            else {
+                // Здесь две вертикальные параллельные прямые, но этот случай обработан выше
+                throw std::logic_error("Incorrect calculation of intersection point");
+            }
+
+            // Если точка пересечения базовых прямых принадлежит отрезкам, то они пересекаются
+            if (ContainsPoint(cross_point) && other.ContainsPoint(cross_point)) {
+                return { std::move(cross_point) };
+            } else {
+                return std::nullopt;
+            }
+        }
+    }
+
+    std::vector<Line> GetFaces() const {
+        return { { start, end } };
+    }
+
+    // Подразумевается, что свойство "перекрываться" актуально только
+    // для отрезков, лежащих на параллельных прямых или на одной прямой.
+    // Этот метод неявно подразумевает это требование.
+    // Если отрезки лежат на разных (параллельных) прямых, то чтобы понять,
+    // "перекрываются" они или нет, нужно сдвинуть одну прямую вдоль перпендикуляра
+    // и "совместить" её с другой прямой. Отрезки окажутся на одной прямой. И таким
+    // образом можно понять, перекрываются они или нет.
+    constexpr inline bool Overlaps(const Line &other) const {
+        const auto coeffs = LineCoeffs();
+        const auto other_coeffs = other.LineCoeffs();
+
+        if (coeffs && other_coeffs) {
+            const auto [k, b] = *coeffs;
+            const auto [k_other, b_other] = *other_coeffs;
+
+            if (std::abs(k) < eps() && std::abs(k_other) < eps()) {
+                // Прямые: y = Const1, y = Const2
+                if (start.x <= other.start.x && other.start.x <= end.x) {
+                    // Начало второго отрезка содержится в первом отрезке
+                    return true;
+                }
+                else if (start.x <= other.end.x && other.end.x <= end.x) {
+                    // Конец второго отрезка содержится в первом отрезке
+                    return true;
+                }
+                else if (start.x <= other.start.x && other.end.x <= end.x) {
+                    // Первый отрезок содержит второй
+                    return true;
+                }
+                else if (other.start.x <= start.x && end.x <= other.end.x) {
+                    // Второй отрезок содержит первый
+                    return true;
+                }
+            }
+            else if (std::abs(k) > eps() && std::abs(k_other) > eps() && std::abs(k - k_other) < 2.0 * eps()) {
+                if (std::abs(b - b_other) < eps()) {
+                    // Это одна и та же прямая - проверяем по координатам
+                    if (start.x <= other.start.x && other.start.x <= end.x) {
+                        // Начало второго отрезка содержится в первом отрезке
+                        return true;
+                    }
+                    else if (other.start.x <= start.x && start.x <= other.end.x) {
+                        // Конец второго отрезка содержится в первом отрезке
+                        return true;
+                    }
+                    else if (start.x <= other.start.x && other.end.x <= end.x) {
+                        // Первый отрезок содержит второй
+                        return true;
+                    }
+                    else if (other.start.x <= start.x && end.x <= other.end.x) {
+                        // Второй отрезок содержит первый
+                        return true;
+                    }
+                } else {
+                    // Это не равные друг другу параллельные прямые.
+                    // Один из концов отрезков должен содержаться в другом отрезке
+                    {
+                        const double x = (start.x + k_other * (start.y - b_other)) / (k_other * k_other + 1.0);
+                        const double y = k_other * x + b_other;
+                        if (other.ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                    {
+                        const double x = (end.x + k_other * (end.y - b_other)) / (k_other * k_other + 1.0);
+                        const double y = k_other * x + b_other;
+                        if (other.ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                    {
+                        const double x = (other.start.x + k * (other.start.y - b)) / (k * k + 1.0);
+                        const double y = k * x + b;
+                        if (ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                    {
+                        const double x = (other.end.x + k * (other.end.y - b)) / (k * k + 1.0);
+                        const double y = k * x + b;
+                        if (ContainsPoint({x, y})) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        else if (!coeffs && !other_coeffs) {
+            // Прямые типа x = Const
+            if (start.y <= other.start.y && other.start.y <= end.y) {
+                // Начало второго отрезка содержится в первом отрезке
+                return true;
+            }
+            else if (other.start.y <= start.y && start.y <= other.end.y) {
+                // Конец второго отрезка содержится в первом отрезке
+                return true;
+            }
+            else if (start.y <= other.start.y && other.end.y <= end.y) {
+                // Первый отрезок содержит второй
+                return true;
+            }
+            else if (other.start.y <= start.y && end.y <= other.end.y) {
+                // Второй отрезок содержит первый
+                return true;
+            }
+        }
+        return false;
+    }
+
+    Point2D GetRandomPoint() const {
+        const auto get_random = [](const double l, const double r) -> double {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            // Здесь есть асимметрия, потому что левая граница включена, а правая нет,
+            // но для простоты считаем это допустимым
+            std::uniform_real_distribution<> dist(l, r);
+            return dist(re);
+        };
+        if (std::abs(start.x - end.x) >= eps() && std::abs(start.y - end.y) >= eps()) {
+            const auto [k, b] = LineCoeffs().value();
+            const double x = get_random(start.x, end.x);
+            return Point2D{ x, k * x + b };
+        }
+        else if (std::abs(start.x - end.x) < eps() && std::abs(start.y - end.y) >= eps()) {
+            return Point2D{ start.x, get_random(start.y, end.y) };
+        }
+        else if (std::abs(start.x - end.x) >= eps() && std::abs(start.y - end.y) < eps()) {
+            return Point2D{ get_random(start.x, end.x), start.y };
+        }
+        else {
+            throw std::logic_error("Equal points can not form a line");
+        }
+        return {};
+    }
 };
 
 struct Triangle {
     Point2D a, b, c;
 
-    //
-    // Обратите внимание! В методе Lines(), в отличие от Vertices(), координаты точек замыкаются на начало:
-    // a.x, b.x, c.x а затем идёт снова первая вершина a.x
-    //
-    // Это необходимо для правильного рисования фигур через gnuplot, который формирует линии используя пары точек.
-    // В случае с  Triangle будут составлены такие пары точек:
-    //      - { a, b }
-    //      - { b, c }
-    //      - { c, a }
-    //
-    Point2D Center() { return {}; }
-    std::array<Point2D, 3> Vertices() { return {a, b, c}; }
-    Lines2D<4> Lines() const { return {{a.x, b.x, c.x, a.x}, {a.y, b.y, c.y, a.y}}; }
+    constexpr inline bool operator==(const Triangle &other) const = default;
+    constexpr inline bool operator!=(const Triangle &other) const = default;
 
-    /* ваш код здесь */
+    constexpr inline double Area() const {
+        return std::abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) / 2.0);
+    }
+
+    constexpr inline Point2D Center() const { return (a + b + c) / 3.0; }
+
+    constexpr inline BoundingBox GetBoundingBox() const {
+        return {
+            { std::min({a.x, b.x, c.x}), std::min({a.y, b.y, c.y}) },
+            { std::max({a.x, b.x, c.x}), std::max({a.y, b.y, c.y}) }
+        };
+    }
+
+    constexpr inline double Height() const { return std::max({ a.y, b.y, c.y }); }
+    constexpr inline Lines2D<4> Lines() const { return {{a.x, b.x, c.x, a.x}, {a.y, b.y, c.y, a.y}}; }
+
+    constexpr bool ContainsPoint(const Point2D &p) const {
+        const auto v = Vertices();
+        std::vector<double> signs(v.size());
+        for (size_t i = 0; i < v.size(); ++i) {
+            signs[i] = (v[(i + 1) % v.size()] - v[i]).Cross(p - v[i]);
+        }
+        const auto are_positive  = [](const double d) -> bool { return d > 0.0; };
+        const auto are_negative  = [](const double d) -> bool { return d < 0.0; };
+        const auto close_to_zero = [](const double d) -> bool { return std::abs(d) < eps(); };
+        if (
+            std::ranges::all_of(signs, are_positive) ||
+            std::ranges::all_of(signs, are_negative) ||
+            std::ranges::any_of(signs, close_to_zero)
+        ) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    inline std::vector<Point2D> Vertices() const { return {a, b, c}; }
+    inline std::vector<Line> GetFaces() const {
+        return { { a, b }, { b, c }, { c, a } };
+    }
+
+    constexpr inline bool CircumCircleContainsPoint(const Point2D &p) const {
+        return CircumCenter().DistanceTo(p) <= CircumRadius() + eps();
+    }
+
+    constexpr inline Point2D CircumCenter() const {
+        const double d = 2.0 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+
+        if (std::abs(d) < eps()) {
+            return { (a.x + b.x + c.x) / 3.0, (a.y + b.y + c.y) / 3.0 };
+        }
+
+        const double ux = (
+            (a.x * a.x + a.y * a.y) * (b.y - c.y) +
+            (b.x * b.x + b.y * b.y) * (c.y - a.y) +
+            (c.x * c.x + c.y * c.y) * (a.y - b.y)
+        ) / d;
+
+        const double uy = (
+            (a.x * a.x + a.y * a.y) * (c.x - b.x) +
+            (b.x * b.x + b.y * b.y) * (a.x - c.x) +
+            (c.x * c.x + c.y * c.y) * (b.x - a.x)
+        ) / d;
+
+        return { ux, uy };
+    }
+
+    constexpr inline double CircumRadius() const {
+        return CircumCenter().DistanceTo(a);
+    }
+
+    constexpr inline bool SharesFace(const Triangle &other) const {
+        const std::span<const Point2D> this_points = {a, b, c};
+        const std::span<const Point2D> other_points = {other.a, other.b, other.c};
+        size_t shared_count = 0;
+
+        for (const Point2D &p1 : this_points) {
+            for (const Point2D &p2 : other_points) {
+                if (std::abs(p1.x - p2.x) < eps() && std::abs(p1.y - p2.y) < eps()) {
+                    shared_count++;
+                    break;
+                }
+            }
+        }
+
+        return shared_count == 2;
+    }
+
+    constexpr inline bool SharesVertex(const Triangle &other) const {
+        return
+            a == other.a || a == other.b || a == other.c ||
+            b == other.a || b == other.b || b == other.c ||
+            c == other.a || c == other.b || c == other.c
+        ;
+    }
 };
 
 struct Rectangle {
-    Point2D bottom_left;
+    Point2D left_bottom;
     double width, height;
 
-    /* ваш код здесь */
-    Point2D Center() { return {}; }
-    std::array<Point2D, 1> Vertices() { return {}; }
-    Lines2D<1> Lines() const { return {}; }
+    constexpr inline bool operator==(const Rectangle &other) const = default;
+    constexpr inline bool operator!=(const Rectangle &other) const = default;
+
+    constexpr inline double Area() const { return width * height; }
+    constexpr inline Point2D Center() const { return left_bottom + Point2D{width/2.0, height/2.0}; }
+    constexpr inline BoundingBox GetBoundingBox() const { return {left_bottom, left_bottom + Point2D{width, height}}; }
+    constexpr inline double Height() const { return left_bottom.y + height; }
+    constexpr inline double Width() const { return width; }
+    constexpr inline Lines2D<1> Lines() const { return {{left_bottom.x}, {left_bottom.y}}; }
+
+    constexpr inline bool ContainsPoint(const Point2D &p) const {
+        const auto top_right = left_bottom + Point2D{width, height};
+        return left_bottom <= p && p <= top_right;
+    }
+
+    inline std::vector<Point2D> Vertices() const {
+        return {
+            left_bottom,
+            Point2D{left_bottom.x + width, left_bottom.y},
+            Point2D{left_bottom.x, left_bottom.y + height},
+            Point2D{left_bottom.x + width, left_bottom.y + height}
+        };
+    }
+    inline std::vector<Line> GetFaces() const {
+        return {
+            { left_bottom, Point2D{left_bottom.x + width, left_bottom.y}  },
+            { left_bottom, Point2D{left_bottom.x, left_bottom.y + height} },
+            { Point2D{left_bottom.x + width, left_bottom.y},  Point2D{left_bottom.x + width, left_bottom.y + height} },
+            { Point2D{left_bottom.x, left_bottom.y + height}, Point2D{left_bottom.x + width, left_bottom.y + height} }
+        };
+    }
 };
 
 struct RegularPolygon {
     Point2D center_p;
     double radius;
-    int sides;
+    size_t sides;
 
-    constexpr RegularPolygon(Point2D center, double radius, int sides)
+    constexpr RegularPolygon(Point2D center, double radius, size_t sides)
         : center_p(center), radius(radius), sides(sides) {}
 
-    Point2D Center() { return {}; }
-    std::vector<Point2D> Vertices() {
+    constexpr inline bool operator==(const RegularPolygon &other) const = default;
+    constexpr inline bool operator!=(const RegularPolygon &other) const = default;
+
+    constexpr inline double Area() const {
+        return sides * radius * radius * sin(2.0 * std::numbers::pi / sides) / 2.0;
+    }
+
+    constexpr inline BoundingBox GetBoundingBox() const {
+        const auto vertices = Vertices();
+        const auto [min_x, max_x] = std::ranges::minmax_element(vertices, {}, &Point2D::x);
+        const auto [min_y, max_y] = std::ranges::minmax_element(vertices, {}, &Point2D::y);
+        return { { (*min_x).x, (*min_y).y }, { (*max_x).x, (*max_y).y } };
+    }
+
+    constexpr inline Point2D Center() const { return center_p; }
+
+    constexpr inline double Height() const {
+        const auto vertices = Vertices();
+        const auto max_elem = std::ranges::max_element(vertices, {}, &Point2D::y);
+        return (*max_elem).y;
+    }
+
+    std::vector<Point2D> Vertices() const {
         std::vector<Point2D> points;
         points.reserve(sides);
-
         for (int i = 0; i < sides; ++i) {
-            const double angle = 2 * std::numbers::pi * i / sides;
-            points.emplace_back(center_p.x + radius * std::cos(angle), center_p.y + radius * std::sin(angle));
+            const double angle = 2.0 * std::numbers::pi * i / sides;
+            points.emplace_back(
+                center_p.x + radius * std::cos(angle),
+                center_p.y + radius * std::sin(angle)
+            );
         }
         return points;
     }
-    Lines2DDyn Lines() const { return {}; }
+
+    inline Lines2DDyn Lines() const {
+        auto vertices = Vertices();
+        auto res = Lines2DDyn{};
+        res.Reserve(vertices.size() + 1);
+        for (const auto &v : vertices) {
+            res.PushBack(v);
+        }
+        res.PushBack(res.Front());
+        return res;
+    }
+
+    constexpr inline double InnerRadius() const {
+        return radius * std::cos(std::numbers::pi / sides);
+    }
+
+    constexpr bool ContainsPoint(const Point2D &p) const {
+        const auto v = Vertices();
+        std::vector<double> signs(v.size());
+        for (size_t i = 0; i < v.size(); ++i) {
+            signs[i] = (v[(i + 1) % v.size()] - v[i]).Cross(p - v[i]);
+        }
+        const auto are_positive  = [](const double d) -> bool { return d > 0.0; };
+        const auto are_negative  = [](const double d) -> bool { return d < 0.0; };
+        const auto close_to_zero = [](const double d) -> bool { return std::abs(d) < eps(); };
+        if (
+            std::ranges::all_of(signs, are_positive) ||
+            std::ranges::all_of(signs, are_negative) ||
+            std::ranges::any_of(signs, close_to_zero)
+        ) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    inline std::vector<Line> GetFaces() const {
+        std::vector<Line> faces;
+        const auto v = Vertices();
+        for (int i = 0; i < v.size(); ++i) {
+            faces.emplace_back(v[i], v[(i + 1) % v.size()]);
+        }
+        return faces;
+    }
 };
 
 struct Circle {
     Point2D center_p;
     double radius;
 
+    constexpr inline bool operator==(const Circle &other) const = default;
+    constexpr inline bool operator!=(const Circle &other) const = default;
+
     constexpr Circle(Point2D center, double radius) : center_p(center), radius(radius) {}
 
-    BoundingBox BoundBox() {
-        return {center_p.x - radius, center_p.y - radius, center_p.x + radius, center_p.y + radius};
+    constexpr inline BoundingBox GetBoundingBox() const {
+        return {
+            { center_p.x - radius, center_p.y - radius },
+            { center_p.x + radius, center_p.y + radius }
+        };
     }
-    double Height() { return center_p.y + radius; }
-    Point2D Center() { return center_p; }
 
-    //
-    // Должны быть сделана по аналогии с RegularPolygon::Vertices
-    //
-    std::vector<Point2D> Vertices(size_t N = 30) { return {}; }
-    Lines2DDyn Lines(size_t N = 100) const { return {}; }
+    constexpr inline double Height() const { return center_p.y + radius; }
+    constexpr inline Point2D Center() const { return center_p; }
+
+    std::vector<Point2D> Vertices(size_t N = 30) const {
+        std::vector<Point2D> points;
+        points.reserve(N);
+
+        for (int i = 0; i < N; ++i) {
+            const double angle = 2.0 * std::numbers::pi * i / N;
+            points.emplace_back(
+                center_p.x + radius * std::cos(angle),
+                center_p.y + radius * std::sin(angle)
+            );
+        }
+        return points;
+    }
+
+    Lines2DDyn Lines(size_t N = 100) const {
+        auto vertices = Vertices(N);
+        auto res = Lines2DDyn{};
+        res.Reserve(vertices.size() + 1);
+        for (const auto &v : vertices) {
+            res.PushBack(v);
+        }
+        res.PushBack(res.Front());
+        return res;
+    }
+
+    Point2D GetRandomPoint() const {
+        const auto get_random = [](const double l, const double r) -> double {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            std::uniform_real_distribution<> dist(l, r);
+            return dist(re);
+        };
+        const double phi = get_random(0.0, 2.0 * std::numbers::pi);
+        return center_p + (Point2D{std::cos(phi), std::sin(phi)} * radius);
+    }
+
+    constexpr inline bool DoNotIntersectCircle(const Circle &other) const {
+        auto dist = Center().DistanceTo(other.Center());
+
+        if (dist > radius + other.radius) {
+            return true; // Слишком далеко друг от друга
+        }
+        else if (dist < std::abs(radius - other.radius)) {
+            return true; // Малый круг внутри большого
+        }
+        else {
+            // Или касаются, или пересекаются
+            return false;
+        }
+    }
+
+    constexpr std::optional<Point2D> GetIntersectPoint(const Circle &other) const {
+        if (*this == other) {
+            return GetRandomPoint();
+        }
+        else if (DoNotIntersectCircle(other)) {
+            return std::nullopt;
+        }
+        else {
+            /*
+                Перенесём систему координат в центр текущей окружности.
+                И будем от неё плясать, координаты центра будут {0, 0}.
+            */
+            const auto new_other_center = other.center_p - center_p;
+            const double a = new_other_center.Dot(new_other_center);
+            const double c = (radius*radius + a - other.radius*other.radius) / 2.0;
+            const double b = -2.0 * new_other_center.y * c;
+            const double e = c*c - radius*radius*new_other_center.x*new_other_center.x;
+            double x, y;
+
+            if (std::abs(new_other_center.x) < eps()) {
+                y = c / new_other_center.y;
+                const double D = radius*radius - y*y;
+
+                if (std::abs(D) < eps()) {
+                    // Окружности касаются друг друга
+                    x = 0.0;
+                }
+                else if (D > 0.0) {
+                    // Пересекаются в двух точках. Берём одну из них.
+                    x = std::sqrt(D);
+                }
+                else {
+                    throw std::logic_error("Circles do not touch each other!");
+                }
+            }
+            else {
+                const double D = b*b - 4.0*a*e;
+                if (std::abs(D) < eps()) {
+                    // Окружности касаются друг друга
+                    y = -b / (2.0 * a);
+                    x = (c - y * new_other_center.y) / new_other_center.x;
+                }
+                else if (D > 0.0) {
+                    // Пересекаются в двух точках. Берём одну из них.
+                    y = (-b + std::sqrt(D)) / (2.0 * a);
+                    x = (c - y * new_other_center.y) / new_other_center.x;
+                }
+                else {
+                    throw std::logic_error("Circles do not intersect each other!");
+                }
+            }
+            return {center_p + Point2D{x, y}};
+        }
+    }
+
+    constexpr std::optional<Point2D> GetIntersectPoint(const Line &line) const {
+        const auto coeffs = line.LineCoeffs();
+        if (coeffs) {
+            const auto [k, d] = *coeffs;
+            const double a = k * k + 1.0;
+            const double b = 2.0 * (k * (d - center_p.y) - center_p.x);
+            const double c = center_p.x * center_p.x + (d - center_p.y) * (d - center_p.y) - radius * radius;
+            const double D = b * b - 4.0 * a * c;
+            if (std::abs(D) < eps()) {
+                // D == 0, прямая, на которой лежит отрезок касается окружности
+                const double x = -b / (2.0 * a); // a != 0
+                const double y = k * x + d;
+                const auto p = Point2D{x, y};
+                if (line.ContainsPoint(p)) {
+                    return { std::move(p) };
+                }
+            }
+            else if (D > 0.0) {
+                // D > 0, Линия на которой лежит отрезок дважды пересекает окружность
+                for (const double sign : {-1.0, +1.0}) {
+                    const double x = (-b + sign * std::sqrt(D)) / (2.0 * a);
+                    const double y = k * x + d;
+                    const auto p = Point2D{x, y};
+                    if (line.ContainsPoint(p)) {
+                        return { std::move(p) };
+                    }
+                }
+            }
+        }
+        else {
+            // Отрезок лежит на вертикальной линии
+            if (center_p.x - radius <= line.start.x && line.start.x <= center_p.x + radius) {
+                const double x = line.start.x;
+                const double D = radius * radius - (x - center_p.x) * (x - center_p.x);
+                if (std::abs(D) < eps()) {
+                    // D == 0, Значит вертикальная прямая касается окружности
+                    const auto p = Point2D{x, center_p.y};
+                    if (line.ContainsPoint(p)) {
+                        return { std::move(p) };
+                    }
+                }
+                else if (D > 0.0) {
+                    // Две точки пересечения
+                    const double y = std::sqrt(D);
+                    for (const double sign : {-1.0, +1.0}) {
+                        const auto p = Point2D{x, center_p.y + sign * y};
+                        if (line.ContainsPoint(p)) {
+                            return { std::move(p) };
+                        }
+                    }
+                }
+                else {
+                    throw std::logic_error("Vertical line do not intersect circle");
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    constexpr inline bool ContainsPoint(const Point2D &p) const {
+        const auto centered_p = p - center_p;
+        return centered_p.Dot(centered_p) <= radius*radius;
+    }
+
+    std::vector<Line> GetFaces() const {
+        throw std::logic_error("Circle has no faces");
+        return {};
+    }
 };
 
-class Polygon {
-public:
-    /* ваш код здесь */
+struct Polygon {
+    std::vector<Point2D> vertices;
 
-    //
-    // Должны быть сделана по аналогии с RegularPolygon::Vertices
-    //
-    Point2D Center() { return {}; }
-    std::vector<Point2D> Vertices(size_t N = 30) const { return {}; }
-    Lines2DDyn Lines(size_t N = 100) const { return {}; }
+    constexpr inline Point2D Center() const {
+        return std::ranges::fold_left(vertices, Point2D{0.0, 0.0}, std::plus<Point2D>()) / vertices.size();
+    }
 
-private:
-    std::vector<Point2D> points_;
-    BoundingBox bounding_box_;
+    constexpr inline bool operator==(const Polygon &other) const = default;
+    constexpr inline bool operator!=(const Polygon &other) const = default;
+
+    constexpr inline double Height() const {
+        return (*std::ranges::max_element(vertices, {}, &Point2D::y)).y;
+    }
+
+    constexpr inline BoundingBox GetBoundingBox() const {
+        const auto [min_x, max_x] = std::ranges::minmax_element(vertices, {}, &Point2D::x);
+        const auto [min_y, max_y] = std::ranges::minmax_element(vertices, {}, &Point2D::y);
+        return { {(*min_x).x, (*min_y).y}, {(*max_x).x, (*max_y).y} };
+    }
+
+    inline std::vector<Point2D> Vertices() const { return vertices; }
+
+    Lines2DDyn Lines() const {
+        auto vertices = Vertices();
+        auto res = Lines2DDyn{};
+        res.Reserve(vertices.size() + 1);
+        for (const auto &v : vertices) {
+            res.PushBack(v);
+        }
+        res.PushBack(res.Front());
+        return res;
+    }
+
+    constexpr bool ContainsPoint(const Point2D &p) const {
+        const auto bbox = GetBoundingBox();
+        const auto ray  = Line{p, {p.x + 2.0 * bbox.Right(), p.y}};
+        size_t num_intersects = 0;
+
+        for (const auto &face : GetFaces()) {
+            if (face.ContainsPoint(p)) {
+                return true;
+            }
+            if (face.GetIntersectPoint(ray).has_value()) {
+                ++num_intersects;
+            }
+        }
+
+        return num_intersects % 2 != 0;
+    }
+
+    std::vector<Line> GetFaces() const {
+        std::vector<Line> faces;
+        const auto v = Vertices();
+        for (size_t i = 0; i < v.size(); ++i) {
+            faces.emplace_back(v[i], v[(i + 1) % v.size()]);
+        }
+        return faces;
+    }
 };
 
 using Shape = std::variant<Line, Triangle, Rectangle, RegularPolygon, Circle, Polygon>;
 
-enum class GeometryError { Unsupported, NoIntersection, InvalidInput, DegenrateCase, InsufficientPoints };
+enum class GeometryError { Unsupported, NoIntersection, InvalidInput, DegenerateCase, InsufficientPoints };
 
 template <typename T>
 using GeometryResult = std::expected<T, GeometryError>;
-
-/*
- * В коде везде используется ReplaceMe. Ваша задача - удалить ReplaceMe и везде вместо него
- использовать наиболее подходящий тип для решения задачи
- */
-struct ReplaceMe {
-    ReplaceMe(std::vector<Shape>) {}
-};
 
 }  // namespace geometry
 
@@ -199,22 +931,31 @@ struct std::formatter<geometry::Point2D> {
         return format_to(ctx.out(), "({:.2f}, {:.2f})", p.x, p.y);
     }
 };
+
 template <>
 struct std::formatter<std::vector<geometry::Point2D>> {
     bool use_new_line = false;
 
-    constexpr auto parse(std::format_parse_context &ctx) const {
+    constexpr auto parse(std::format_parse_context &ctx) {
         auto it = ctx.begin();
-
-        /* ваш код здесь */
-
+        std::string marker;
+        while (it != ctx.end()) {
+            marker = marker + *it;
+        }
+        if (marker == "new_line") {
+            use_new_line = true;
+        }
         return it;
     }
 
     template <typename FormatContext>
     auto format(const std::vector<geometry::Point2D> &v, FormatContext &ctx) const {
-
-        /* ваш код здесь */
+        for (const auto &p : v) {
+            if (use_new_line) {
+                std::format_to(ctx.out(), "\n\t");
+            }
+            std::format_to(ctx.out(), "{} ", p);
+        }
         return ctx.out();
     }
 };
@@ -245,8 +986,7 @@ struct std::formatter<geometry::Rectangle> {
 
     template <typename FormatContext>
     auto format(const geometry::Rectangle &r, FormatContext &ctx) const {
-        return std::format_to(ctx.out(), "Rectangle(bottom_left={}, w={:.2f}, h={:.2f})", r.bottom_left, r.width,
-                              r.height);
+        return std::format_to(ctx.out(), "Rectangle(bottom_left={}, w={:.2f}, h={:.2f})", r.left_bottom, r.width, r.height);
     }
 };
 
@@ -256,10 +996,10 @@ struct std::formatter<geometry::RegularPolygon> {
 
     template <typename FormatContext>
     auto format(const geometry::RegularPolygon &p, FormatContext &ctx) const {
-        return std::format_to(ctx.out(), "RegularPolygon(center={}, r={:.2f}, sides={})", p.center_p, p.radius,
-                              p.sides);
+        return std::format_to(ctx.out(), "RegularPolygon(center={}, r={:.2f}, sides={})", p.center_p, p.radius, p.sides);
     }
 };
+
 template <>
 struct std::formatter<geometry::Triangle> {
     constexpr auto parse(std::format_parse_context &ctx) const { return ctx.begin(); }
@@ -269,6 +1009,7 @@ struct std::formatter<geometry::Triangle> {
         return std::format_to(ctx.out(), "Triangle({}, {}, {})", t.a, t.b, t.c);
     }
 };
+
 template <>
 struct std::formatter<geometry::Polygon> {
     constexpr auto parse(std::format_parse_context &ctx) const { return ctx.begin(); }
@@ -277,11 +1018,9 @@ struct std::formatter<geometry::Polygon> {
     auto format(const geometry::Polygon &poly, FormatContext &ctx) const {
         auto out = ctx.out();
         out = std::format_to(out, "Polygon[{} points]: [", poly.Vertices().size());
-
         for (const auto &p : poly.Vertices()) {
             out = std::format_to(out, "{} ", p);
         }
-
         return std::format_to(out, "]");
     }
 };

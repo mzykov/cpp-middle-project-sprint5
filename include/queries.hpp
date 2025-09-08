@@ -1,4 +1,5 @@
 #pragma once
+
 #include "geometry.hpp"
 #include <algorithm>
 #include <optional>
@@ -6,72 +7,142 @@
 
 namespace geometry::queries {
 
-template <class... Ts>
-struct Multilambda : Ts... {
-    using Ts::operator()...;
-};
-
-/*
- * Класс для поиска расстояния от точки до фигуры
- *
- * Требуется организовать возможность нахождения расстояния для всех возможных фигур типа-суммы Shape
- */
 struct PointToShapeDistanceVisitor {
-    Point2D point;
+    const Point2D point;
 
     explicit PointToShapeDistanceVisitor(const Point2D &p) : point(p) {}
 
-    /* ваш код здесь */
+    double accept(const Line &line) const {
+        const auto coeffs = line.LineCoeffs();
+        if (coeffs) {
+            const auto [k, b] = *coeffs;
+            const double x = (point.x + k * (point.y - b)) / (k * k + 1.0);
+            const double y = k * x + b;
+            const auto p = Point2D{x, y};
+            if (line.ContainsPoint(p)) {
+                return point.DistanceTo(p);
+            }
+        }
+        else {
+            // Прямая x = Const
+            // Перпендикуляр пересекает её в точке {Const, point.y}
+            const auto p = Point2D{line.start.x, point.y};
+            if (line.ContainsPoint(p)) {
+                return std::abs(point.x - line.start.x);
+            }
+        }
+        return std::min(point.DistanceTo(line.start), point.DistanceTo(line.end));
+    }
+
+    double accept(const Circle &circle) const {
+        const auto dist = point.DistanceTo(circle.center_p);
+        if (dist > circle.radius) {
+            return dist - circle.radius;
+        } else {
+            return 0.0;
+        }
+    }
+
+    double accept(const auto &v) const {
+        if (v.ContainsPoint(point)) {
+            return 0.0;
+        } else {
+            const auto dists = v.GetFaces()
+                | std::views::transform([&](const Line &face){ return accept(face); })
+                | std::ranges::to<std::vector>();
+            return *std::ranges::min_element(dists);
+        }
+    }
 };
 
-/*
- * Класс для поиска расстояния между двумя фигурами
- *
- * Требуется организовать возможность нахождения расстояния только для следующих комбинаций фигур:
- *    - Any    & Point
- *    - Line   & Line
- *    - Circle & Circle
- *
- * Важно: вы можете выбрать любой метод нахождения расстояния, даже если он даёт не точный результат
- *
- * Для всех остальных требуется вернуть пустое значение
- */
-struct ShapeToShapeDistanceVisitor {
-
-    /* ваш код здесь */
+template <class... Ts>
+struct ShapeToShapeDistanceVisitor : Ts... {
+    using Ts::operator()...;
 };
 
-/*
- * Функции-помощники
- */
+template <class... Ts>
+ShapeToShapeDistanceVisitor(Ts...) -> ShapeToShapeDistanceVisitor<Ts...>;
+
 inline double DistanceToPoint(const Shape &shape, const Point2D &point) {
-
-    /* ваш код здесь */
-    return 0.0;
+    const auto visiter = PointToShapeDistanceVisitor{point};
+    return shape.visit([&](const auto &v){ return visiter.accept(v); });
 }
 
-inline BoundingBox GetBoundBox(const Shape &shape) {
-
-    /* ваш код здесь */
-    return {};
+inline BoundingBox GetBoundingBox(const Shape &shape) {
+    return shape.visit([](auto &&v){ return v.GetBoundingBox(); });
 }
 
 inline double GetHeight(const Shape &shape) {
-
-    /* ваш код здесь */
-    return 0.0;
+    return shape.visit([](auto &&v){ return v.Height(); });
 }
 
-inline bool BoundingBoxesOverlap(const Shape &shape1, const Shape &shape2) {
-
-    /* ваш код здесь */
-    return false;
+inline bool BoundingBoxesOverlaps(const Shape &shape1, const Shape &shape2) {
+    const auto bbox1 = shape1.visit([](auto &&v){ return v.GetBoundingBox(); });
+    const auto bbox2 = shape2.visit([](auto &&v){ return v.GetBoundingBox(); });
+    return bbox1.Overlaps(bbox2);
 }
 
-std::optional<double> DistanceBetweenShapes(const Shape &shape1, const Shape &shape2) {
+inline GeometryResult<double> DistanceBetweenShapes(const Shape &shape1, const Shape &shape2) {
+    const auto visiter = ShapeToShapeDistanceVisitor {
+        [&](const Line &line1, const Line &line2) -> GeometryResult<double> {
+            if (line1.SharesSameLine(line2) && line1.Overlaps(line2)) {
+                return 0.0;
+            }
+            else if (line1.IsParallelTo(line2) && line1.Overlaps(line2)) {
+                const auto data1 = line1.LineCoeffs();
+                const auto data2 = line2.LineCoeffs();
+                if (data1 && data2) {
+                    const auto [k1, b1] = *data1;
+                    const auto [k2, b2] = *data2;
+                    if (std::abs(k1) < eps() && std::abs(k2) < eps()) {
+                        // Две прямые y = Const1 и y = Const2
+                        return std::abs(b2 - b1);
+                    }
+                    else if (std::abs(k1) > eps() && std::abs(k2) > eps()) {
+                        const auto dist = std::abs(
+                            ((b2 - b1) * k1 * k2 / (k1 * b2 - k2 * b1))
+                            /
+                            std::sqrt(
+                                (b2 - b1) * (b2 - b1) + ((k1 * b2 - k2 * b1) * (k1 * b2 - k2 * b1)) / (k1 * k1 * k2 * k2)
+                            )
+                        );
+                        return dist;
+                    }
+                    else {
+                        throw std::logic_error("Angle coefficients are differ, but lines must be parallel");
+                    }
+                }
+                else if (!data1 && !data2) {
+                    // Две прямые x = Const1 и x = Const2
+                    return std::abs(line1.start.x - line2.start.x);
+                }
+                else {
+                    throw std::logic_error("Lines must be parallel, but they are not");
+                }
+                return 0.0;
+            }
+            else {
+                const auto ss = DistanceToPoint(shape1, line2.start);
+                const auto se = DistanceToPoint(shape1, line2.end);
+                const auto es = DistanceToPoint(shape2, line1.start);
+                const auto ee = DistanceToPoint(shape2, line1.end);
+                return std::min({ ss, se, es, ee });
+            }
+        },
+        [](const Circle &circle1, const Circle &circle2) -> GeometryResult<double> {
+            const auto l = Line{circle1.center_p, circle2.center_p}.Length();
 
-    /* ваш код с ShapeToShapeDistanceVisitor здесь*/
-    return std::nullopt;
+            if (l > circle1.radius + circle2.radius) {
+                return l - circle1.radius - circle2.radius;
+            } else {
+                return 0.0;
+            }
+        },
+        [](const auto &v1, const auto &v2) -> GeometryResult<double> {
+            return std::unexpected{GeometryError::Unsupported};
+        },
+    };
+    return std::visit(visiter, shape1, shape2);
 }
 
 }  // namespace geometry::queries

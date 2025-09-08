@@ -1,7 +1,7 @@
 #pragma once
+
 #include "geometry.hpp"
 #include "queries.hpp"
-#include <print>
 #include <random>
 #include <ranges>
 #include <utility>
@@ -20,26 +20,26 @@ public:
         double size = size_dist(gen);
 
         switch (type_dist(gen)) {
-        case 0: {
-            Point2D end{center.x + size, center.y + size};
-            return Line{center, end};
-        }
-        case 1: {
-            Point2D a{center.x, center.y};
-            Point2D b{center.x + size, center.y};
-            Point2D c{center.x + size / 2, center.y + size};
-            return Triangle{a, b, c};
-        }
-        case 2: {
-            return Rectangle{center, size, size * 0.8};
-        }
-        case 3: {
-            int sides = sides_dist(gen);
-            return RegularPolygon{center, size, sides};
-        }
-        case 4: {
-            return Circle{center, size};
-        }
+            case 0: {
+                Point2D end{center.x + size, center.y + size};
+                return Line{center, end};
+            }
+            case 1: {
+                Point2D a{center.x, center.y};
+                Point2D b{center.x + size, center.y};
+                Point2D c{center.x + size / 2, center.y + size};
+                return Triangle{a, b, c};
+            }
+            case 2: {
+                return Rectangle{center, size, size * 0.8};
+            }
+            case 3: {
+                size_t sides = sides_dist(gen);
+                return RegularPolygon{center, size, sides};
+            }
+            case 4: {
+                return Circle{center, size};
+            }
         }
         return Circle{center, size};
     }
@@ -48,8 +48,8 @@ public:
         std::vector<Shape> shapes;
         shapes.reserve(count);
 
-        for (auto _ : std::views::iota(0u, count)) {
-            shapes.push_back(GenerateRandomShape());
+        while (count --> 0) {
+            shapes.emplace_back(GenerateRandomShape());
         }
 
         return shapes;
@@ -59,31 +59,53 @@ private:
     std::mt19937 gen;
     std::uniform_real_distribution<double> coord_dist;
     std::uniform_real_distribution<double> size_dist;
-    std::uniform_int_distribution<int> sides_dist;
+    std::uniform_int_distribution<size_t> sides_dist;
     std::uniform_int_distribution<int> type_dist;
 };
 
-std::vector<std::pair<Shape, Shape>> FindAllCollisions(ReplaceMe shapes) {
-    std::vector<std::pair<Shape, Shape>> collisions;
-
-    /*
-     * Используйте библиотеку ranges, чтобы найти все коллизии между фигурами методом BoundingBoxesOverlap
-     *
-     * Также используйте наиболее эффективный метод добавления объектов в collisions
-     */
-
-    return collisions;
+std::vector<std::pair<Shape, Shape>> FindAllCollisions(std::span<const Shape> shapes) {
+    return std::views::cartesian_product(shapes, shapes)
+        | std::views::filter([](const auto &p){
+            const auto &shape1 = std::get<0>(p);
+            const auto &shape2 = std::get<1>(p);
+            if (shape1 == shape2) {
+                return false;
+            } else {
+                return queries::BoundingBoxesOverlaps(shape1, shape2);
+            }
+        })
+        | std::ranges::to<std::vector<std::pair<Shape, Shape>>>();
 }
 
-std::optional<size_t> FindHighestShape(ReplaceMe shapes) {
+std::optional<std::pair<Shape, Shape>> FindLowestAndHighestShape(std::span<const Shape> shapes) {
+    if (shapes.size() == 0) {
+        return std::nullopt;
+    } else {
+        const auto height_lambda = [](const auto &v) -> double { return v.Height(); };
+        const auto height_comp = [&height_lambda](const auto &lhd, const auto &rhd) -> bool {
+            return lhd.visit(height_lambda) < rhd.visit(height_lambda);
+        };
+        const auto [min_y, max_y] = std::ranges::minmax_element(shapes, height_comp);
+        return {{*min_y, *max_y}};
+    }
+}
 
-    /*
-     * Используйте библиотеку ranges, чтобы найти самую высокую фигуру
-     *
-     * Важно: использование ручной итерации по фигурам не разрешается
-     */
+std::optional<Shape> FindHighestShape(std::span<const Shape> shapes) {
+    const auto p = FindLowestAndHighestShape(shapes);
+    if (p.has_value()) {
+        return { std::get<1>(*p) };
+    } else {
+        return std::nullopt;
+    }
+}
 
-    return std::nullopt;
+std::optional<Shape> FindLowestShape(std::span<const Shape> shapes) {
+    const auto p = FindLowestAndHighestShape(shapes);
+    if (p.has_value()) {
+        return { std::get<0>(*p) };
+    } else {
+        return std::nullopt;
+    }
 }
 
 }  // namespace geometry::utils
