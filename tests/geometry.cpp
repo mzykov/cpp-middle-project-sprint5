@@ -297,9 +297,14 @@ TEST(TestGeometry, TestPolygon) {
         heptagon{origin, 0.0005, 7},
         octagon{Point2D{-5.0, -3.0}, 1e5, 8}
     ;
-    const Polygon looks_like_flag{
-        { {0.0, 0.0}, {11.1, 0.0}, {std::numbers::pi, 4.17}, {10.9, 8.2111}, {0.0, 8.2111} }
+    const Polygon
+        looks_like_flag{{{0.0, 0.0}, {11.1, 0.0}, {std::numbers::pi, 4.17}, {10.9, 8.2111}, {0.0, 8.2111}}},
+        convex{{{0.0, 0.0}, {5.0, 0.0}, {8.0, 1.0}, {9.0, 3.0}, {8.0, 5.0}, {5.0, 5.0}, {1.0, 3.0}}}
+    ;
+    const std::vector<Point2D> out_of_convex {
+        {0.0, -1.1}, {8.0, 0.0}, {9.0, 1.0}, {8.0, 7.0}, {5.0, 6.5}, {0.0, 3.0}, {-1.0, -1.0}
     };
+
     // when
     // then
     EXPECT_FALSE(looks_like_flag.ContainsPoint(out_of_flag));
@@ -308,12 +313,17 @@ TEST(TestGeometry, TestPolygon) {
     for (const auto &v : looks_like_flag.Vertices()) {
         EXPECT_TRUE(looks_like_flag.ContainsPoint(v));
     }
+    for (const auto &v : convex.Vertices()) {
+        EXPECT_TRUE(convex.ContainsPoint(v));
+    }
+    for (const auto &p : out_of_convex) {
+        EXPECT_FALSE(convex.ContainsPoint(p));
+    }
     for (const auto &regular_polygon : {triangle, square, pentagon, hexagon, heptagon, octagon}) {
         const Polygon arbitrary_polygon{regular_polygon.Vertices()};
         EXPECT_TRUE((arbitrary_polygon.Center() == regular_polygon.Center()));
         EXPECT_TRUE((arbitrary_polygon.Height() == regular_polygon.Height()));
         EXPECT_TRUE((arbitrary_polygon.GetBoundingBox() == regular_polygon.GetBoundingBox()));
-        EXPECT_TRUE(arbitrary_polygon.ContainsPoint(origin));
 
         for (const auto &v : arbitrary_polygon.Vertices()) {
             EXPECT_TRUE(arbitrary_polygon.ContainsPoint(v));

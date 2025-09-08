@@ -887,23 +887,20 @@ struct Polygon {
     }
 
     constexpr bool ContainsPoint(const Point2D &p) const {
-        const auto v = Vertices();
-        std::vector<double> signs(v.size());
-        for (size_t i = 0; i < v.size(); ++i) {
-            signs[i] = (v[(i + 1) % v.size()] - v[i]).Cross(p - v[i]);
+        const auto bbox = GetBoundingBox();
+        const auto ray  = Line{p, {p.x + 2.0 * bbox.Right(), p.y}};
+        size_t num_intersects = 0;
+
+        for (const auto &face : GetFaces()) {
+            if (face.ContainsPoint(p)) {
+                return true;
+            }
+            if (face.GetIntersectPoint(ray).has_value()) {
+                ++num_intersects;
+            }
         }
-        const auto are_positive  = [](const double d) -> bool { return d > 0.0; };
-        const auto are_negative  = [](const double d) -> bool { return d < 0.0; };
-        const auto close_to_zero = [](const double d) -> bool { return std::abs(d) < eps(); };
-        if (
-            std::ranges::all_of(signs, are_positive) ||
-            std::ranges::all_of(signs, are_negative) ||
-            std::ranges::any_of(signs, close_to_zero)
-        ) {
-            return true;
-        } else {
-            return false;
-        }
+
+        return num_intersects % 2 != 0;
     }
 
     std::vector<Line> GetFaces() const {

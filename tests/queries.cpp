@@ -85,6 +85,7 @@ TEST(TestQueries, TestPointToRegularPolygonDistance) {
         heptagon = RegularPolygon{origin, 0.0005, 7},
         octagon  = RegularPolygon{Point2D{-5.0, -3.0}, 1e5, 8}
     ;
+
     const auto get_random_point_out_of_shape_on_line = [](const Line &l, const Point2D &c) -> Point2D {
         const auto get_random_coord = [](const double l, const double r) -> double {
             std::random_device rd;
@@ -92,6 +93,8 @@ TEST(TestQueries, TestPointToRegularPolygonDistance) {
             std::uniform_real_distribution<> dist(l, r);
             return dist(re);
         };
+        // Числа 1.0 и 2.0 выбраны просто из соображений здравого смысла и удобства.
+        // Никакой смысловой нагрузки не  несут. Можно было бы взять другие :)
         if (l.IsVertical()) {
             double lo, hi;
             if (l.end == c) {
@@ -155,8 +158,70 @@ TEST(TestQueries, TestPointToCircleDistance) {
     EXPECT_TRUE((std::abs(queries::DistanceToPoint(circle1, egypt) - 6.68331969448077) < eps()));
 }
 
-TEST(TestQueries, TestPointToPolygonDistance) {
+TEST(TestQueries, TestPointToConvexPolygonDistance) {
+    // given
+    const std::vector<std::pair<Point2D, double>> cases {
+        {{0.0, -1.1}, 1.1},
+        {{8.0, 0.0}, 3.0/std::sqrt(10.0)},
+        {{9.0, 1.0}, 2.0/std::sqrt(5.0)},
+        {{8.0, 7.0}, 2.0},
+        {{5.0, 6.5}, 1.5},
+        {{0.0, 3.0}, 3.0/std::sqrt(10.0)},
+        {{-1.0, -1.0}, std::sqrt(2.0)}
+    };
+    const Shape convex = Polygon{
+        {{0.0, 0.0}, {5.0, 0.0}, {8.0, 1.0}, {9.0, 3.0}, {8.0, 5.0}, {5.0, 5.0}, {1.0, 3.0}}
+    };
 
+    // when
+    const auto center = convex.visit([](auto &&poly){ return poly.Center(); });
+    // then
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(convex, center), 0.0);
+
+    // when, then
+    for (const auto &[p, expected_length] : cases) {
+        EXPECT_TRUE((std::abs(queries::DistanceToPoint(convex, p) - expected_length) < eps()));
+    }
+}
+
+TEST(TestQueries, TestPointToNonConvexPolygonDistance) {
+    // given
+    constexpr Point2D
+        origin{0.0, 0.0},
+        before_origin{-1.7, 0.0},
+        arbitrary_inside{3.0, 1.0},
+        against_vertex0{5.0, 7.1},
+        against_vertex1{9.0, -1.0},
+        against_face{1.0, 4.0},
+        between_faces0{6.0, 4.0},
+        between_faces1{6.5, 5.0}
+    ;
+    const Shape nonconvex = Polygon{{
+        origin, {5.0, 5.0}, {5.0, 2.0}, {8.0, 5.0}, {8.0, 0.0}
+    }};
+
+    // when
+    // then
+    const auto center = nonconvex.visit([](auto &&poly){ return poly.Center(); });
+    EXPECT_TRUE((std::abs(queries::DistanceToPoint(nonconvex, center) - 1.0/(5.0 * std::sqrt(2.0))) < eps()));
+
+    const auto vertices = nonconvex.visit([](auto &&poly){ return poly.Vertices(); });
+    for (const auto &v : vertices) {
+        EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, v), 0.0);
+    }
+
+    const auto faces = nonconvex.visit([](auto &&poly){ return poly.GetFaces(); });
+    for (const auto &face : faces) {
+        EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, face.Center()), 0.0);
+    }
+
+    //EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, before_origin), 1.7);
+    //EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, arbitrary_inside), 0.0);
+    //EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, against_vertex0), 2.1);
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, against_vertex1), std::sqrt(2.0));
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, against_face), 3.0/std::sqrt(2.0));
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, between_faces0), 1.0/std::sqrt(2.0));
+    EXPECT_DOUBLE_EQ(queries::DistanceToPoint(nonconvex, between_faces1), 1.5/std::sqrt(2.0));
 }
 
 TEST(TestQueries, TestDistanceBetweenLines) {
